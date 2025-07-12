@@ -79,11 +79,59 @@ cmake ..
 make
 ```
 
+### Build with Custom Library Paths
+
+If you have libraries installed in non-standard locations, you can specify the paths explicitly:
+
+```bash
+cmake .. \
+  -DLUAJIT_INCLUDE_DIR=/path/to/luajit/include \
+  -DLUAJIT_LIBRARY=/path/to/luajit/lib/libluajit-5.1.dylib \
+  -DLIBUV_INCLUDE_DIR=/path/to/libuv/include \
+  -DLIBUV_LIBRARY=/path/to/libuv/lib/libuv.dylib \
+  -DMYSQL_INCLUDE_DIR=/path/to/mysql/include \
+  -DMYSQL_LIBRARY=/path/to/mysql/lib/libmysqlclient.dylib
+```
+
 ### macOS with Homebrew
 
 ```bash
 # Install dependencies
 brew install luajit libuv mysql
+
+# Build with automatic detection
+mkdir build && cd build
+cmake ..
+make
+
+# Or specify Homebrew paths explicitly
+cmake .. \
+  -DLUAJIT_INCLUDE_DIR=/opt/homebrew/include/luajit-2.1 \
+  -DLUAJIT_LIBRARY=/opt/homebrew/lib/libluajit-5.1.dylib \
+  -DLIBUV_INCLUDE_DIR=/opt/homebrew/include \
+  -DLIBUV_LIBRARY=/opt/homebrew/lib/libuv.dylib \
+  -DMYSQL_INCLUDE_DIR=/opt/homebrew/Cellar/mysql@8.4/8.4.4/include \
+  -DMYSQL_LIBRARY=/opt/homebrew/Cellar/mysql@8.4/8.4.4/lib/libmysqlclient.dylib
+```
+
+### Ubuntu/Debian
+
+```bash
+# Install dependencies
+sudo apt update
+sudo apt install build-essential cmake libluajit-5.1-dev libuv1-dev libmysqlclient-dev
+
+# Build
+mkdir build && cd build
+cmake ..
+make
+```
+
+### CentOS/RHEL
+
+```bash
+# Install dependencies
+sudo yum install gcc gcc-c++ cmake luajit-devel libuv-devel mysql-devel
 
 # Build
 mkdir build && cd build

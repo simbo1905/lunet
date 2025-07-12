@@ -72,11 +72,25 @@ Lunet 是一个基于协程的网络库，提供同步风格的 API，底层异�
 ### 从源码构建
 
 ```bash
-git clone https://github.com/yourusername/lunet.git
+git clone https://github.com/xialeistudio/lunet.git
 cd lunet
 mkdir build && cd build
 cmake ..
 make
+```
+
+### 指定库路径构建
+
+如果您的库安装在非标准位置，可以显式指定路径：
+
+```bash
+cmake .. \
+  -DLUAJIT_INCLUDE_DIR=/path/to/luajit/include \
+  -DLUAJIT_LIBRARY=/path/to/luajit/lib/libluajit-5.1.dylib \
+  -DLIBUV_INCLUDE_DIR=/path/to/libuv/include \
+  -DLIBUV_LIBRARY=/path/to/libuv/lib/libuv.dylib \
+  -DMYSQL_INCLUDE_DIR=/path/to/mysql/include \
+  -DMYSQL_LIBRARY=/path/to/mysql/lib/libmysqlclient.dylib
 ```
 
 ### macOS 使用 Homebrew
@@ -84,6 +98,40 @@ make
 ```bash
 # 安装依赖
 brew install luajit libuv mysql
+
+# 自动检测构建
+mkdir build && cd build
+cmake ..
+make
+
+# 或者显式指定 Homebrew 路径
+cmake .. \
+  -DLUAJIT_INCLUDE_DIR=/opt/homebrew/include/luajit-2.1 \
+  -DLUAJIT_LIBRARY=/opt/homebrew/lib/libluajit-5.1.dylib \
+  -DLIBUV_INCLUDE_DIR=/opt/homebrew/include \
+  -DLIBUV_LIBRARY=/opt/homebrew/lib/libuv.dylib \
+  -DMYSQL_INCLUDE_DIR=/opt/homebrew/Cellar/mysql@8.4/8.4.4/include \
+  -DMYSQL_LIBRARY=/opt/homebrew/Cellar/mysql@8.4/8.4.4/lib/libmysqlclient.dylib
+```
+
+### Ubuntu/Debian
+
+```bash
+# 安装依赖
+sudo apt update
+sudo apt install build-essential cmake libluajit-5.1-dev libuv1-dev libmysqlclient-dev
+
+# 构建
+mkdir build && cd build
+cmake ..
+make
+```
+
+### CentOS/RHEL
+
+```bash
+# 安装依赖
+sudo yum install gcc gcc-c++ cmake luajit-devel libuv-devel mysql-devel
 
 # 构建
 mkdir build && cd build
