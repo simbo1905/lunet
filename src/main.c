@@ -6,6 +6,7 @@
 
 #include "co.h"
 #include "fs.h"
+#include "lunet_signal.h"
 #include "mysql.h"
 #include "rt.h"
 #include "socket.h"
@@ -42,9 +43,13 @@ int lunet_open_fs(lua_State *L) {
   luaL_Reg funcs[] = {{"open", lunet_fs_open},
                       {"close", lunet_fs_close},
                       {"read", lunet_fs_read},
+                      {"pread", lunet_fs_pread},
                       {"write", lunet_fs_write},
+                      {"pwrite", lunet_fs_pwrite},
                       {"stat", lunet_fs_stat},
                       {"scandir", lunet_fs_scandir},
+                      {"fsync", lunet_fs_fsync},
+                      {"ftruncate", lunet_fs_ftruncate},
                       {NULL, NULL}};
   luaL_newlib(L, funcs);
   return 1;

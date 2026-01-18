@@ -425,6 +425,56 @@ int lunet_fs_read(lua_State *L) {
   return lua_yield(L, 0);
 }
 
+// Positioned read (pread) - read at specific offset
+int lunet_fs_pread(lua_State *L) {
+  if (lunet_ensure_coroutine(L, "fs.pread") != 0) {
+    return lua_error(L);
+  }
+  if (lua_gettop(L) < 3 || !lua_isnumber(L, 1) || !lua_isnumber(L, 2) || !lua_isnumber(L, 3)) {
+    lua_pushnil(L);
+    lua_pushstring(L, "fs.pread requires fd, length, and offset");
+    return 2;
+  }
+
+  uv_file fd = (uv_file)lua_tointeger(L, 1);
+  size_t len = (size_t)lua_tointeger(L, 2);
+  int64_t offset = (int64_t)lua_tointeger(L, 3);
+
+  fs_read_ctx_t *ctx = malloc(sizeof(fs_read_ctx_t));
+  if (!ctx) {
+    lua_pushnil(L);
+    lua_pushstring(L, "fs.pread out of memory");
+    return 2;
+  }
+
+  ctx->L = L;
+  lua_pushthread(L);
+  ctx->co_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  ctx->len = len;
+  ctx->buf = malloc(len);
+  if (!ctx->buf) {
+    luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
+    free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, "fs.pread out of memory");
+    return 2;
+  }
+  ctx->req.data = ctx;
+
+  uv_buf_t buf = uv_buf_init(ctx->buf, len);
+  int rc = uv_fs_read(uv_default_loop(), &ctx->req, fd, &buf, 1, offset, lunet_fs_read_cb);
+  if (rc < 0) {
+    luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
+    free(ctx->buf);
+    free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, uv_strerror(rc));
+    return 2;
+  }
+
+  return lua_yield(L, 0);
+}
+
 typedef struct {
   uv_fs_t req;
   lua_State *L;
@@ -476,8 +526,8 @@ int lunet_fs_write(lua_State *L) {
     return 2;
   }
   uv_file fd = (uv_file)lua_tointeger(L, 1);
-  const char *data = luaL_checkstring(L, 2);
-  size_t len = strlen(data);
+  size_t len;
+  const char *data = lua_tolstring(L, 2, &len);
 
   fs_write_ctx_t *ctx = malloc(sizeof(fs_write_ctx_t));
   if (!ctx) {
@@ -504,6 +554,58 @@ int lunet_fs_write(lua_State *L) {
 
   uv_buf_t buf = uv_buf_init(ctx->buf, len);
   int rc = uv_fs_write(uv_default_loop(), &ctx->req, fd, &buf, 1, 0, lunet_fs_write_cb);
+  if (rc < 0) {
+    luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
+    free(ctx->buf);
+    free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, uv_strerror(rc));
+    return 2;
+  }
+
+  return lua_yield(L, 0);
+}
+
+// Positioned write (pwrite) - write at specific offset
+int lunet_fs_pwrite(lua_State *L) {
+  if (lunet_ensure_coroutine(L, "fs.pwrite") != 0) {
+    return lua_error(L);
+  }
+  if (lua_gettop(L) < 3 || !lua_isnumber(L, 1) || !lua_isstring(L, 2) || !lua_isnumber(L, 3)) {
+    lua_pushnil(L);
+    lua_pushstring(L, "fs.pwrite requires fd, data, and offset");
+    return 2;
+  }
+  uv_file fd = (uv_file)lua_tointeger(L, 1);
+  size_t len;
+  const char *data = lua_tolstring(L, 2, &len);
+  int64_t offset = (int64_t)lua_tointeger(L, 3);
+
+  fs_write_ctx_t *ctx = malloc(sizeof(fs_write_ctx_t));
+  if (!ctx) {
+    lua_pushnil(L);
+    lua_pushstring(L, "fs.pwrite out of memory");
+    return 2;
+  }
+
+  ctx->L = L;
+  lua_pushthread(L);
+  ctx->co_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  ctx->len = len;
+  ctx->buf = malloc(len);
+  if (!ctx->buf) {
+    luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
+    free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, "fs.pwrite out of memory");
+    return 2;
+  }
+
+  memcpy(ctx->buf, data, len);
+  ctx->req.data = ctx;
+
+  uv_buf_t buf = uv_buf_init(ctx->buf, len);
+  int rc = uv_fs_write(uv_default_loop(), &ctx->req, fd, &buf, 1, offset, lunet_fs_write_cb);
   if (rc < 0) {
     luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
     free(ctx->buf);
@@ -617,6 +719,147 @@ int lunet_fs_scandir(lua_State *L) {
     lua_pushnil(L);
     lua_pushstring(L, uv_strerror(rc));
     return 2;
+  }
+
+  return lua_yield(L, 0);
+}
+
+// fsync context
+typedef struct {
+  uv_fs_t req;
+  lua_State *L;
+  int co_ref;
+} fs_fsync_ctx_t;
+
+static void lunet_fs_fsync_cb(uv_fs_t *req) {
+  fs_fsync_ctx_t *ctx = (fs_fsync_ctx_t *)req->data;
+  lua_State *L = ctx->L;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, ctx->co_ref);
+  luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
+
+  if (!lua_isthread(L, -1)) {
+    lua_pop(L, 1);
+    fprintf(stderr, "invalid coroutine in fs.fsync\n");
+    goto cleanup;
+  }
+
+  lua_State *co = lua_tothread(L, -1);
+  lua_pop(L, 1);
+
+  if (req->result == 0) {
+    lua_pushnil(co);
+  } else {
+    lua_pushstring(co, uv_strerror((int)req->result));
+  }
+
+  lua_resume(co, 1);
+
+cleanup:
+  uv_fs_req_cleanup(req);
+  free(ctx);
+}
+
+// fsync - flush file to disk for durability
+int lunet_fs_fsync(lua_State *L) {
+  if (lunet_ensure_coroutine(L, "fs.fsync") != 0) {
+    return lua_error(L);
+  }
+  if (lua_gettop(L) < 1 || !lua_isnumber(L, 1)) {
+    lua_pushstring(L, "fs.fsync requires fd");
+    return 1;
+  }
+
+  uv_file fd = (uv_file)lua_tointeger(L, 1);
+
+  fs_fsync_ctx_t *ctx = malloc(sizeof(fs_fsync_ctx_t));
+  if (!ctx) {
+    lua_pushstring(L, "fs.fsync out of memory");
+    return 1;
+  }
+
+  ctx->L = L;
+  lua_pushthread(L);
+  ctx->co_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  ctx->req.data = ctx;
+
+  int rc = uv_fs_fsync(uv_default_loop(), &ctx->req, fd, lunet_fs_fsync_cb);
+  if (rc < 0) {
+    luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
+    free(ctx);
+    lua_pushstring(L, uv_strerror(rc));
+    return 1;
+  }
+
+  return lua_yield(L, 0);
+}
+
+// ftruncate context
+typedef struct {
+  uv_fs_t req;
+  lua_State *L;
+  int co_ref;
+} fs_ftruncate_ctx_t;
+
+static void lunet_fs_ftruncate_cb(uv_fs_t *req) {
+  fs_ftruncate_ctx_t *ctx = (fs_ftruncate_ctx_t *)req->data;
+  lua_State *L = ctx->L;
+
+  lua_rawgeti(L, LUA_REGISTRYINDEX, ctx->co_ref);
+  luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
+
+  if (!lua_isthread(L, -1)) {
+    lua_pop(L, 1);
+    fprintf(stderr, "invalid coroutine in fs.ftruncate\n");
+    goto cleanup;
+  }
+
+  lua_State *co = lua_tothread(L, -1);
+  lua_pop(L, 1);
+
+  if (req->result == 0) {
+    lua_pushnil(co);
+  } else {
+    lua_pushstring(co, uv_strerror((int)req->result));
+  }
+
+  lua_resume(co, 1);
+
+cleanup:
+  uv_fs_req_cleanup(req);
+  free(ctx);
+}
+
+// ftruncate - truncate/extend file to specified size
+int lunet_fs_ftruncate(lua_State *L) {
+  if (lunet_ensure_coroutine(L, "fs.ftruncate") != 0) {
+    return lua_error(L);
+  }
+  if (lua_gettop(L) < 2 || !lua_isnumber(L, 1) || !lua_isnumber(L, 2)) {
+    lua_pushstring(L, "fs.ftruncate requires fd and size");
+    return 1;
+  }
+
+  uv_file fd = (uv_file)lua_tointeger(L, 1);
+  int64_t size = (int64_t)lua_tointeger(L, 2);
+
+  fs_ftruncate_ctx_t *ctx = malloc(sizeof(fs_ftruncate_ctx_t));
+  if (!ctx) {
+    lua_pushstring(L, "fs.ftruncate out of memory");
+    return 1;
+  }
+
+  ctx->L = L;
+  lua_pushthread(L);
+  ctx->co_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+  ctx->req.data = ctx;
+
+  int rc = uv_fs_ftruncate(uv_default_loop(), &ctx->req, fd, size, lunet_fs_ftruncate_cb);
+  if (rc < 0) {
+    luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
+    free(ctx);
+    lua_pushstring(L, uv_strerror(rc));
+    return 1;
   }
 
   return lua_yield(L, 0);

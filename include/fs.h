@@ -6,7 +6,11 @@
 int lunet_fs_open(lua_State *L);
 int lunet_fs_close(lua_State *L);
 int lunet_fs_read(lua_State *L);
+int lunet_fs_pread(lua_State *L);
 int lunet_fs_write(lua_State *L);
+int lunet_fs_pwrite(lua_State *L);
 int lunet_fs_stat(lua_State *L);
 int lunet_fs_scandir(lua_State *L);
+int lunet_fs_fsync(lua_State *L);
+int lunet_fs_ftruncate(lua_State *L);
 #endif
