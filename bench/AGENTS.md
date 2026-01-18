@@ -50,11 +50,8 @@ psql -h 127.0.0.1 -U $(whoami) -c "SELECT 1" conduit
 
 ### mise Python Setup
 ```bash
-# Install Python 3.12 if not present
-mise install python@3.12
-
-# Set for this project (creates mise.toml)
-mise use python@3.12
+# Initialize benchmark environment (installs/configures Python 3.12 via mise)
+make init-bench
 
 # Verify
 eval "$(mise activate bash)" && python3 --version
@@ -68,8 +65,8 @@ eval "$(mise activate bash)" && python3 --version
 
 ### Manual Setup
 ```bash
-# 1. Ensure mise Python is active
-eval "$(mise activate bash)"
+# 1. Initialize environment
+make init-bench
 
 # 2. Run setup
 lua bin/bench_setup_django.lua

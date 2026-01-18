@@ -1,4 +1,4 @@
-.PHONY: all build deps test clean run stop wui bench-django bench-django-stop help
+.PHONY: all build deps test clean run stop wui init-bench bench-django bench-django-stop help
 
 all: build ## Build the project (default)
 
@@ -47,6 +47,14 @@ wui: ## Start the React/Vite Frontend
 # Requires: mise with Python 3.12, PostgreSQL with 'conduit' database
 # See bench/AGENTS.md for setup details
 # =============================================================================
+
+init-bench: ## Initialize benchmark dependencies (mise, python)
+	@echo "Initializing benchmark environment..."
+	@command -v mise >/dev/null 2>&1 || { echo >&2 "Error: mise required. See https://mise.jdx.dev"; exit 1; }
+	mise trust
+	mise install python@3.12
+	mise use python@3.12
+	@echo "Benchmark environment initialized. Python 3.12 ready."
 
 bench-django: ## Start Django benchmark environment
 	@echo "Starting Django benchmark server..."
