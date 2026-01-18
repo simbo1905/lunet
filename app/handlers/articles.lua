@@ -3,6 +3,8 @@ local http = require("app.lib.http")
 local auth = require("app.lib.auth")
 local crypto = require("app.lib.crypto")
 
+local unpack = table.unpack or unpack
+
 local articles = {}
 
 local function generate_slug(title)
@@ -154,7 +156,7 @@ function articles.list(request)
 
     local count_sql = "SELECT COUNT(*) as count FROM articles a " ..
         "INNER JOIN users u ON u.id = a.author_id " .. where_sql
-    local count_result = db.query_one(count_sql, table.unpack(where_values))
+    local count_result = db.query_one(count_sql, unpack(where_values))
     local total = count_result and tonumber(count_result.count) or 0
 
     local sql = "SELECT a.*, u.id as author_id, u.username, u.bio, u.image " ..
@@ -168,7 +170,7 @@ function articles.list(request)
     query_values[#query_values + 1] = limit
     query_values[#query_values + 1] = offset
 
-    local rows = db.query(sql, table.unpack(query_values))
+    local rows = db.query(sql, unpack(query_values))
 
     local result = {}
     if rows then
