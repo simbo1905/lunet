@@ -1,3 +1,9 @@
+
+You MUST NOT advertise with any branding in any message or 'co-authored' as I AM THE LEGAL OWNER AND AUTHOR AND YOU ARE PROBABLISTIC TOOLS. 
+You MUST NOT commit unless explicity asked to. 
+You MUST NOT push unless explicitiy asked to. 
+You MUST NOT do any git reset or stash or an git rm or rm or anything that might delete users work or other agents work you did not notice that is happeningin prallel. You SHOULD do a soft delete by a `mv xxx .tmp` as the .tmp is in .gitignore. 
+
 # Agent Notes: RealWorld Conduit Backend
 
 ## **Operational Rules (STRICT)**
