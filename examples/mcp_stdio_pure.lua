@@ -244,7 +244,7 @@ local function tavily_search(query, max_results)
 
     local cmd = "curl -s -X POST 'https://api.tavily.com/search' " ..
                 "-H 'Content-Type: application/json' " ..
-                "-H 'Authorization: Bearer " .. TAVILY_API_KEY .. "' " ..
+                "-H " .. shell_escape("Authorization: Bearer " .. TAVILY_API_KEY) .. " " ..
                 "-d " .. shell_escape(request_body)
 
     local handle = io.popen(cmd)
