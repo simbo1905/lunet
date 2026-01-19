@@ -543,7 +543,12 @@ local function handle_message_request(client, req, session_id)
 
     local response = handle_mcp_request(msg)
     if response and session.client then
-        socket.write(session.client, sse_event("message", response))
+        local err = socket.write(session.client, sse_event("message", response))
+        if err then
+            print("[SSE] Session " .. session_id .. " disconnected: " .. tostring(err))
+            socket.close(session.client)
+            sessions[session_id] = nil
+        end
     end
 end
 
