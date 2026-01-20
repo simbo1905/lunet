@@ -287,6 +287,13 @@ Lunet 专为高性能而设计：
 4. 添加测试（如适用）
 5. 提交拉取请求
 
+## 示例
+
+| 示例 | 描述 |
+|------|------|
+| [01_json.lua](examples/01_json.lua) | 纯 Lua JSON 编码器，结合 MySQL 集成 |
+| [02_routing.lua](examples/02_routing.lua) | HTTP 路由与 URL 参数提取（`:id`） |
+
 ## 许可证
 
 本项目采用 MIT 许可证 - 详情请参阅 [LICENSE](LICENSE) 文件。
