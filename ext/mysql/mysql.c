@@ -3,6 +3,8 @@
 #include <lauxlib.h>
 #include <lua.h>
 #include <mysql/mysql.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "co.h"
 #include "uv.h"
@@ -21,10 +23,10 @@ typedef struct {
   char password[256];
   char database[256];
   char charset[256];
-} mysql_open_ctx_t;
+} db_open_ctx_t;
 
-static void mysql_open_work_cb(uv_work_t* req) {
-  mysql_open_ctx_t* ctx = (mysql_open_ctx_t*)req->data;
+static void db_open_work_cb(uv_work_t* req) {
+  db_open_ctx_t* ctx = (db_open_ctx_t*)req->data;
   ctx->conn = mysql_init(NULL);
   if (!ctx->conn) {
     snprintf(ctx->err, sizeof(ctx->err), "mysql_init failed");
@@ -41,15 +43,15 @@ static void mysql_open_work_cb(uv_work_t* req) {
   }
 }
 
-static void mysql_open_after_cb(uv_work_t* req, int status) {
-  mysql_open_ctx_t* ctx = (mysql_open_ctx_t*)req->data;
+static void db_open_after_cb(uv_work_t* req, int status) {
+  db_open_ctx_t* ctx = (db_open_ctx_t*)req->data;
   lua_State* L = ctx->L;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, ctx->co_ref);
   luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
   if (!lua_isthread(L, -1)) {
     lua_pop(L, 1);
-    fprintf(stderr, "invalid coroutine in mysql.open\n");
+    fprintf(stderr, "invalid coroutine in db.open\n");
     mysql_close(ctx->conn);
     ctx->conn = NULL;
     free(ctx);
@@ -69,66 +71,64 @@ static void mysql_open_after_cb(uv_work_t* req, int status) {
   free(ctx);
 }
 
-int lunet_mysql_open(lua_State* L) {
-  if (lunet_ensure_coroutine(L, "mysql.open")) {
+int lunet_db_open(lua_State* L) {
+  if (lunet_ensure_coroutine(L, "db.open")) {
     return lua_error(L);
   }
   if (lua_gettop(L) < 1 || !lua_istable(L, 1)) {
-    lua_pushstring(L, "mysql.open requires params table");
+    lua_pushstring(L, "db.open requires params table");
     return lua_error(L);
   }
 
-  mysql_open_ctx_t* ctx = malloc(sizeof(mysql_open_ctx_t));
+  db_open_ctx_t* ctx = malloc(sizeof(db_open_ctx_t));
   if (!ctx) {
     lua_pushnil(L);
-    lua_pushstring(L, "mysql.open: out of memory");
+    lua_pushstring(L, "db.open: out of memory");
     return lua_error(L);
   }
   memset(ctx->err, 0, sizeof(ctx->err));
   ctx->L = L;
   ctx->req.data = ctx;
 
-  // read params from table
   lua_getfield(L, 1, "host");
-  strncpy(ctx->host, luaL_checkstring(L, -1), sizeof(ctx->host));
+  strncpy(ctx->host, luaL_optstring(L, -1, "localhost"), sizeof(ctx->host));
   lua_getfield(L, 1, "port");
-  ctx->port = luaL_checkinteger(L, -1);
+  ctx->port = luaL_optinteger(L, -1, 3306);
   lua_getfield(L, 1, "user");
-  strncpy(ctx->user, luaL_checkstring(L, -1), sizeof(ctx->user));
+  strncpy(ctx->user, luaL_optstring(L, -1, "root"), sizeof(ctx->user));
   lua_getfield(L, 1, "password");
-  strncpy(ctx->password, luaL_checkstring(L, -1), sizeof(ctx->password));
+  strncpy(ctx->password, luaL_optstring(L, -1, ""), sizeof(ctx->password));
   lua_getfield(L, 1, "database");
-  strncpy(ctx->database, luaL_checkstring(L, -1), sizeof(ctx->database));
+  strncpy(ctx->database, luaL_optstring(L, -1, ""), sizeof(ctx->database));
   lua_getfield(L, 1, "charset");
-  strncpy(ctx->charset, luaL_checkstring(L, -1), sizeof(ctx->charset));
-  // save coroutine reference to main lua state
+  strncpy(ctx->charset, luaL_optstring(L, -1, "utf8mb4"), sizeof(ctx->charset));
   lua_pop(L, 6);
 
   lua_pushthread(L);
   ctx->co_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  int ret = uv_queue_work(uv_default_loop(), &ctx->req, mysql_open_work_cb, mysql_open_after_cb);
+  int ret = uv_queue_work(uv_default_loop(), &ctx->req, db_open_work_cb, db_open_after_cb);
   if (ret < 0) {
     luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
     free(ctx);
     lua_pushnil(L);
-    lua_pushfstring(L, "mysql.open: uv_queue_work failed: %s", uv_strerror(ret));
+    lua_pushfstring(L, "db.open: uv_queue_work failed: %s", uv_strerror(ret));
     return lua_error(L);
   }
 
   return lua_yield(L, 0);
 }
 
-int lunet_mysql_close(lua_State* L) {
-  if (lunet_ensure_coroutine(L, "mysql.close")) {
+int lunet_db_close(lua_State* L) {
+  if (lunet_ensure_coroutine(L, "db.close")) {
     return lua_error(L);
   }
   if (lua_gettop(L) < 1) {
-    lua_pushstring(L, "mysql.close requires a connection");
+    lua_pushstring(L, "db.close requires a connection");
     return 1;
   }
   if (!lua_isuserdata(L, 1) && !lua_islightuserdata(L, 1)) {
-    lua_pushstring(L, "mysql.close requires a connection");
+    lua_pushstring(L, "db.close requires a connection");
     return 1;
   }
 
@@ -153,10 +153,10 @@ typedef struct {
 
   MYSQL_RES* result;
   char err[256];
-} mysql_query_ctx_t;
+} db_query_ctx_t;
 
-static void mysql_query_work_cb(uv_work_t* req) {
-  mysql_query_ctx_t* ctx = (mysql_query_ctx_t*)req->data;
+static void db_query_work_cb(uv_work_t* req) {
+  db_query_ctx_t* ctx = (db_query_ctx_t*)req->data;
 
   if (mysql_query(ctx->conn, ctx->query)) {
     snprintf(ctx->err, sizeof(ctx->err), "%s", mysql_error(ctx->conn));
@@ -170,15 +170,15 @@ static void mysql_query_work_cb(uv_work_t* req) {
   }
 }
 
-static void mysql_query_after_cb(uv_work_t* req, int status) {
-  mysql_query_ctx_t* ctx = (mysql_query_ctx_t*)req->data;
+static void db_query_after_cb(uv_work_t* req, int status) {
+  db_query_ctx_t* ctx = (db_query_ctx_t*)req->data;
   lua_State* L = ctx->L;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, ctx->co_ref);
   luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
   if (!lua_isthread(L, -1)) {
     lua_pop(L, 1);
-    fprintf(stderr, "invalid coroutine in mysql.query\n");
+    fprintf(stderr, "invalid coroutine in db.query\n");
     if (ctx->result) mysql_free_result(ctx->result);
     free((void*)ctx->query);
     free(ctx);
@@ -245,22 +245,23 @@ static void mysql_query_after_cb(uv_work_t* req, int status) {
     lua_resume(co, 2);
   }
 
+  free((void*)ctx->query);
   free(ctx);
 }
 
-int lunet_mysql_query(lua_State* L) {
-  if (lunet_ensure_coroutine(L, "mysql.query")) {
+int lunet_db_query(lua_State* L) {
+  if (lunet_ensure_coroutine(L, "db.query")) {
     return lua_error(L);
   }
   if (lua_gettop(L) < 2) {
     lua_pushnil(L);
-    lua_pushstring(L, "mysql.query requires connection and sql string");
+    lua_pushstring(L, "db.query requires connection and sql string");
     return 2;
   }
 
   if (!lua_isuserdata(L, 1) && !lua_islightuserdata(L, 1)) {
     lua_pushnil(L);
-    lua_pushstring(L, "mysql.query requires a connection");
+    lua_pushstring(L, "db.query requires a connection");
     return 2;
   }
 
@@ -273,7 +274,7 @@ int lunet_mysql_query(lua_State* L) {
 
   const char* query = luaL_checkstring(L, 2);
 
-  mysql_query_ctx_t* ctx = malloc(sizeof(mysql_query_ctx_t));
+  db_query_ctx_t* ctx = malloc(sizeof(db_query_ctx_t));
   if (!ctx) {
     lua_pushstring(L, "out of memory");
     return lua_error(L);
@@ -293,7 +294,7 @@ int lunet_mysql_query(lua_State* L) {
   lua_pushthread(L);
   ctx->co_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  int ret = uv_queue_work(uv_default_loop(), &ctx->req, mysql_query_work_cb, mysql_query_after_cb);
+  int ret = uv_queue_work(uv_default_loop(), &ctx->req, db_query_work_cb, db_query_after_cb);
   if (ret < 0) {
     luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
     free((void*)ctx->query);
@@ -317,10 +318,10 @@ typedef struct {
   int affected_rows;
   unsigned long long insert_id;
   char err[256];
-} mysql_exec_ctx_t;
+} db_exec_ctx_t;
 
-static void mysql_exec_work_cb(uv_work_t* req) {
-  mysql_exec_ctx_t* ctx = (mysql_exec_ctx_t*)req->data;
+static void db_exec_work_cb(uv_work_t* req) {
+  db_exec_ctx_t* ctx = (db_exec_ctx_t*)req->data;
 
   if (mysql_query(ctx->conn, ctx->query)) {
     snprintf(ctx->err, sizeof(ctx->err), "%s", mysql_error(ctx->conn));
@@ -331,15 +332,15 @@ static void mysql_exec_work_cb(uv_work_t* req) {
   ctx->insert_id = mysql_insert_id(ctx->conn);
 }
 
-static void mysql_exec_after_cb(uv_work_t* req, int status) {
-  mysql_exec_ctx_t* ctx = (mysql_exec_ctx_t*)req->data;
+static void db_exec_after_cb(uv_work_t* req, int status) {
+  db_exec_ctx_t* ctx = (db_exec_ctx_t*)req->data;
   lua_State* L = ctx->L;
 
   lua_rawgeti(L, LUA_REGISTRYINDEX, ctx->co_ref);
   luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
   if (!lua_isthread(L, -1)) {
     lua_pop(L, 1);
-    fprintf(stderr, "invalid coroutine in mysql.exec\n");
+    fprintf(stderr, "invalid coroutine in db.exec\n");
     free((void*)ctx->query);
     free(ctx);
     return;
@@ -367,18 +368,18 @@ static void mysql_exec_after_cb(uv_work_t* req, int status) {
   free(ctx);
 }
 
-int lunet_mysql_exec(lua_State* L) {
-  if (lunet_ensure_coroutine(L, "mysql.exec")) {
+int lunet_db_exec(lua_State* L) {
+  if (lunet_ensure_coroutine(L, "db.exec")) {
     return lua_error(L);
   }
   if (lua_gettop(L) < 2) {
     lua_pushnil(L);
-    lua_pushstring(L, "mysql.exec requires connection and sql string");
+    lua_pushstring(L, "db.exec requires connection and sql string");
     return 2;
   }
   if (!lua_isuserdata(L, 1) && !lua_islightuserdata(L, 1)) {
     lua_pushnil(L);
-    lua_pushstring(L, "mysql.exec requires a connection");
+    lua_pushstring(L, "db.exec requires a connection");
     return 2;
   }
 
@@ -391,7 +392,7 @@ int lunet_mysql_exec(lua_State* L) {
 
   const char* query = luaL_checkstring(L, 2);
 
-  mysql_exec_ctx_t* ctx = malloc(sizeof(mysql_exec_ctx_t));
+  db_exec_ctx_t* ctx = malloc(sizeof(db_exec_ctx_t));
   if (!ctx) {
     lua_pushnil(L);
     lua_pushstring(L, "out of memory");
@@ -412,7 +413,7 @@ int lunet_mysql_exec(lua_State* L) {
   lua_pushthread(L);
   ctx->co_ref = luaL_ref(L, LUA_REGISTRYINDEX);
 
-  int ret = uv_queue_work(uv_default_loop(), &ctx->req, mysql_exec_work_cb, mysql_exec_after_cb);
+  int ret = uv_queue_work(uv_default_loop(), &ctx->req, db_exec_work_cb, db_exec_after_cb);
   if (ret < 0) {
     luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
     free((void*)ctx->query);
@@ -423,4 +424,24 @@ int lunet_mysql_exec(lua_State* L) {
   }
 
   return lua_yield(L, 0);
+}
+
+int lunet_db_escape(lua_State* L) {
+  luaL_checkstring(L, 1);
+  lua_getglobal(L, "string");
+  lua_getfield(L, -1, "gsub");
+  lua_remove(L, -2); /* remove string table */
+
+  if (!lua_isfunction(L, -1)) {
+    return luaL_error(L, "string.gsub is not available");
+  }
+
+  lua_pushvalue(L, 1);
+  lua_pushstring(L, "(['\\\\])");
+  lua_pushstring(L, "\\%1");
+
+  if (lua_pcall(L, 3, 1, 0) != LUA_OK) {
+    return lua_error(L);
+  }
+  return 1;
 }

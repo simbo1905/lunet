@@ -51,11 +51,17 @@ Lunet 是一个基于协程的网络库，提供同步风格的 API，底层异�
 - `stat(path)`：获取文件统计信息
 - `scandir(path)`：列出目录内容
 
-### MySQL 模块 (`lunet.mysql`)
+### 数据库模块 (`lunet.db`)
+
+数据库模块提供统一的数据库操作 API。后端在编译时通过 CMake 选项选择。
+
 - `open(params)`：打开数据库连接
 - `close(conn)`：关闭数据库连接
-- `query(conn, query)`：执行 SELECT 查询
-- `exec(conn, query)`：执行 INSERT/UPDATE/DELETE
+- `query(conn, sql)`：执行 SELECT 查询，返回行数组
+- `exec(conn, sql)`：执行 INSERT/UPDATE/DELETE，返回 `{affected_rows, last_insert_id}`
+- `escape(str)`：转义字符串以防止 SQL 注入
+
+支持的后端：MySQL、PostgreSQL、SQLite3（或无）
 
 ### 信号模块 (`lunet.signal`)
 - `wait(signal)`：等待系统信号
@@ -67,7 +73,10 @@ Lunet 是一个基于协程的网络库，提供同步风格的 API，底层异�
 - CMake 3.10+
 - LuaJIT 2.1+
 - libuv 1.x
-- MySQL 客户端库（MySQL 模块需要）
+- 数据库库（可选，根据选择的后端）：
+  - MySQL：libmysqlclient
+  - PostgreSQL：libpq
+  - SQLite3：libsqlite3
 
 ### 从源码构建
 
@@ -75,7 +84,21 @@ Lunet 是一个基于协程的网络库，提供同步风格的 API，底层异�
 git clone https://github.com/xialeistudio/lunet.git
 cd lunet
 mkdir build && cd build
+
+# 不带数据库构建（默认）
 cmake ..
+make
+
+# 带 MySQL 构建
+cmake -DLUNET_DB=mysql ..
+make
+
+# 带 PostgreSQL 构建
+cmake -DLUNET_DB=postgres ..
+make
+
+# 带 SQLite3 构建
+cmake -DLUNET_DB=sqlite3 ..
 make
 ```
 
@@ -88,54 +111,84 @@ cmake .. \
   -DLUAJIT_INCLUDE_DIR=/path/to/luajit/include \
   -DLUAJIT_LIBRARY=/path/to/luajit/lib/libluajit-5.1.dylib \
   -DLIBUV_INCLUDE_DIR=/path/to/libuv/include \
-  -DLIBUV_LIBRARY=/path/to/libuv/lib/libuv.dylib \
+  -DLIBUV_LIBRARY=/path/to/libuv/lib/libuv.dylib
+
+# MySQL 后端：
+cmake -DLUNET_DB=mysql .. \
   -DMYSQL_INCLUDE_DIR=/path/to/mysql/include \
   -DMYSQL_LIBRARY=/path/to/mysql/lib/libmysqlclient.dylib
+
+# PostgreSQL 后端：
+cmake -DLUNET_DB=postgres .. \
+  -DPQ_INCLUDE_DIR=/path/to/postgresql/include \
+  -DPQ_LIBRARY=/path/to/postgresql/lib/libpq.dylib
+
+# SQLite3 后端：
+cmake -DLUNET_DB=sqlite3 .. \
+  -DSQLITE3_INCLUDE_DIR=/path/to/sqlite3/include \
+  -DSQLITE3_LIBRARY=/path/to/sqlite3/lib/libsqlite3.dylib
 ```
+
+### 数据库后端选项
+
+使用 `LUNET_DB` CMake 选项选择数据库后端：
+
+| 值 | 后端 | 需要的库 |
+|-----|---------|------------------|
+| `none` | 无数据库（默认） | 无 |
+| `mysql` | MySQL | libmysqlclient |
+| `postgres` | PostgreSQL | libpq |
+| `sqlite3` | SQLite3 | libsqlite3 |
 
 ### macOS 使用 Homebrew
 
 ```bash
-# 安装依赖
-brew install luajit libuv mysql
+# 安装核心依赖
+brew install luajit libuv
 
-# 自动检测构建
+# 根据需要安装数据库库
+brew install mysql          # MySQL 后端
+brew install libpq          # PostgreSQL 后端
+brew install sqlite3        # SQLite3 后端
+
+# 使用选择的后端构建
 mkdir build && cd build
-cmake ..
+cmake -DLUNET_DB=postgres ..
 make
-
-# 或者显式指定 Homebrew 路径
-cmake .. \
-  -DLUAJIT_INCLUDE_DIR=/opt/homebrew/include/luajit-2.1 \
-  -DLUAJIT_LIBRARY=/opt/homebrew/lib/libluajit-5.1.dylib \
-  -DLIBUV_INCLUDE_DIR=/opt/homebrew/include \
-  -DLIBUV_LIBRARY=/opt/homebrew/lib/libuv.dylib \
-  -DMYSQL_INCLUDE_DIR=/opt/homebrew/Cellar/mysql@8.4/8.4.4/include \
-  -DMYSQL_LIBRARY=/opt/homebrew/Cellar/mysql@8.4/8.4.4/lib/libmysqlclient.dylib
 ```
 
 ### Ubuntu/Debian
 
 ```bash
-# 安装依赖
+# 安装核心依赖
 sudo apt update
-sudo apt install build-essential cmake libluajit-5.1-dev libuv1-dev libmysqlclient-dev
+sudo apt install build-essential cmake libluajit-5.1-dev libuv1-dev
 
-# 构建
+# 根据需要安装数据库库
+sudo apt install libmysqlclient-dev   # MySQL
+sudo apt install libpq-dev            # PostgreSQL
+sudo apt install libsqlite3-dev       # SQLite3
+
+# 使用选择的后端构建
 mkdir build && cd build
-cmake ..
+cmake -DLUNET_DB=sqlite3 ..
 make
 ```
 
 ### CentOS/RHEL
 
 ```bash
-# 安装依赖
-sudo yum install gcc gcc-c++ cmake luajit-devel libuv-devel mysql-devel
+# 安装核心依赖
+sudo yum install gcc gcc-c++ cmake luajit-devel libuv-devel
 
-# 构建
+# 根据需要安装数据库库
+sudo yum install mysql-devel           # MySQL
+sudo yum install postgresql-devel      # PostgreSQL
+sudo yum install sqlite-devel          # SQLite3
+
+# 使用选择的后端构建
 mkdir build && cd build
-cmake ..
+cmake -DLUNET_DB=postgres ..
 make
 ```
 
@@ -213,13 +266,17 @@ end)
 
 ### 数据库操作
 
+`lunet.db` 模块提供统一的 API，无论编译了哪个数据库后端。
+
+**注意**：您必须使用启用的数据库后端编译 lunet 才能使用此模块。详情请参阅[数据库后端选项](#数据库后端选项)。
+
 ```lua
 local lunet = require('lunet')
-local mysql = require('lunet.mysql')
+local db = require('lunet.db')
 
 lunet.spawn(function()
     -- 连接数据库
-    local conn, err = mysql.open({
+    local conn, err = db.open({
         host = "localhost",
         port = 3306,
         user = "root",
@@ -229,7 +286,7 @@ lunet.spawn(function()
     
     if conn then
         -- 执行查询
-        local result, err = mysql.query(conn, "SELECT * FROM users")
+        local result, err = db.query(conn, "SELECT * FROM users")
         if result then
             for i, row in ipairs(result) do
                 print('用户:', row.name, row.email)
@@ -237,15 +294,40 @@ lunet.spawn(function()
         end
         
         -- 执行更新
-        local result, err = mysql.exec(conn, "INSERT INTO users (name, email) VALUES ('John', 'john@example.com')")
+        local result, err = db.exec(conn, "INSERT INTO users (name, email) VALUES ('John', 'john@example.com')")
         if result then
             print('影响行数:', result.affected_rows)
             print('最后插入 ID:', result.last_insert_id)
         end
         
-        mysql.close(conn)
+        db.close(conn)
     end
 end)
+```
+
+#### 运行示例
+
+完整的工作示例在 `examples/` 目录中提供：
+
+**SQLite3**（无需服务器 - 纯本地运行）：
+```bash
+cd build
+cmake -DLUNET_DB=sqlite3 .. && make
+./lunet ../examples/sqlite3.lua
+```
+
+**MySQL**（需要 MySQL 服务器和 `lunet_demo` 数据库）：
+```bash
+cd build
+cmake -DLUNET_DB=mysql .. && make
+./lunet ../examples/demo_mysql.lua
+```
+
+**PostgreSQL**（需要 PostgreSQL 服务器和 `lunet_demo` 数据库）：
+```bash
+cd build
+cmake -DLUNET_DB=postgres .. && make
+./lunet ../examples/demo_postgresql.lua
 ```
 
 ## 使用方法
@@ -263,7 +345,7 @@ Lunet 包含完整的类型定义以支持 IDE 智能提示。类型文件位于
 - `types/lunet.lua` - 核心模块类型
 - `types/lunet/socket.lua` - 套接字模块类型  
 - `types/lunet/fs.lua` - 文件系统模块类型
-- `types/lunet/mysql.lua` - MySQL 模块类型
+- `types/lunet/db.lua` - 数据库模块类型（统一 API）
 - `types/lunet/signal.lua` - 信号模块类型
 
 ## 性能
@@ -296,3 +378,5 @@ Lunet 专为高性能而设计：
 - [LuaJIT](https://luajit.org/) - 快速的 Lua 实现
 - [libuv](https://libuv.org/) - 跨平台异步 I/O
 - [MySQL](https://www.mysql.com/) - 数据库连接
+- [PostgreSQL](https://www.postgresql.org/) - 数据库连接
+- [SQLite](https://www.sqlite.org/) - 嵌入式数据库

@@ -51,11 +51,16 @@ Lunet is a coroutine-based networking library that provides synchronous APIs wit
 - `stat(path)`: Get file statistics
 - `scandir(path)`: List directory contents
 
-### MySQL Module (`lunet.mysql`)
+### Database Module (`lunet.db`)
+
+The database module provides a unified API for database operations. The backend is selected at compile time via CMake option.
+
 - `open(params)`: Open database connection
 - `close(conn)`: Close database connection
-- `query(conn, query)`: Execute SELECT query
-- `exec(conn, query)`: Execute INSERT/UPDATE/DELETE
+- `query(conn, sql)`: Execute SELECT query, returns array of rows
+- `exec(conn, sql)`: Execute INSERT/UPDATE/DELETE, returns `{affected_rows, last_insert_id}`
+
+Supported backends: MySQL, PostgreSQL, SQLite3 (or none)
 
 ### Signal Module (`lunet.signal`)
 - `wait(signal)`: Wait for system signal
@@ -67,7 +72,10 @@ Lunet is a coroutine-based networking library that provides synchronous APIs wit
 - CMake 3.10+
 - LuaJIT 2.1+
 - libuv 1.x
-- MySQL client library (for MySQL module)
+- Database library (optional, based on chosen backend):
+  - MySQL: libmysqlclient
+  - PostgreSQL: libpq
+  - SQLite3: libsqlite3
 
 ### Build from Source
 
@@ -75,7 +83,21 @@ Lunet is a coroutine-based networking library that provides synchronous APIs wit
 git clone https://github.com/xialeistudio/lunet.git
 cd lunet
 mkdir build && cd build
+
+# Build without database (default)
 cmake ..
+make
+
+# Build with MySQL
+cmake -DLUNET_DB=mysql ..
+make
+
+# Build with PostgreSQL
+cmake -DLUNET_DB=postgres ..
+make
+
+# Build with SQLite3
+cmake -DLUNET_DB=sqlite3 ..
 make
 ```
 
@@ -88,54 +110,84 @@ cmake .. \
   -DLUAJIT_INCLUDE_DIR=/path/to/luajit/include \
   -DLUAJIT_LIBRARY=/path/to/luajit/lib/libluajit-5.1.dylib \
   -DLIBUV_INCLUDE_DIR=/path/to/libuv/include \
-  -DLIBUV_LIBRARY=/path/to/libuv/lib/libuv.dylib \
+  -DLIBUV_LIBRARY=/path/to/libuv/lib/libuv.dylib
+
+# For MySQL backend:
+cmake -DLUNET_DB=mysql .. \
   -DMYSQL_INCLUDE_DIR=/path/to/mysql/include \
   -DMYSQL_LIBRARY=/path/to/mysql/lib/libmysqlclient.dylib
+
+# For PostgreSQL backend:
+cmake -DLUNET_DB=postgres .. \
+  -DPQ_INCLUDE_DIR=/path/to/postgresql/include \
+  -DPQ_LIBRARY=/path/to/postgresql/lib/libpq.dylib
+
+# For SQLite3 backend:
+cmake -DLUNET_DB=sqlite3 .. \
+  -DSQLITE3_INCLUDE_DIR=/path/to/sqlite3/include \
+  -DSQLITE3_LIBRARY=/path/to/sqlite3/lib/libsqlite3.dylib
 ```
+
+### Database Backend Options
+
+Use the `LUNET_DB` CMake option to select a database backend:
+
+| Value | Backend | Library Required |
+|-------|---------|------------------|
+| `none` | No database (default) | None |
+| `mysql` | MySQL | libmysqlclient |
+| `postgres` | PostgreSQL | libpq |
+| `sqlite3` | SQLite3 | libsqlite3 |
 
 ### macOS with Homebrew
 
 ```bash
-# Install dependencies
-brew install luajit libuv mysql
+# Install core dependencies
+brew install luajit libuv
 
-# Build with automatic detection
+# Install database libraries as needed
+brew install mysql          # For MySQL backend
+brew install libpq          # For PostgreSQL backend
+brew install sqlite3        # For SQLite3 backend
+
+# Build with your chosen backend
 mkdir build && cd build
-cmake ..
+cmake -DLUNET_DB=postgres ..
 make
-
-# Or specify Homebrew paths explicitly
-cmake .. \
-  -DLUAJIT_INCLUDE_DIR=/opt/homebrew/include/luajit-2.1 \
-  -DLUAJIT_LIBRARY=/opt/homebrew/lib/libluajit-5.1.dylib \
-  -DLIBUV_INCLUDE_DIR=/opt/homebrew/include \
-  -DLIBUV_LIBRARY=/opt/homebrew/lib/libuv.dylib \
-  -DMYSQL_INCLUDE_DIR=/opt/homebrew/Cellar/mysql@8.4/8.4.4/include \
-  -DMYSQL_LIBRARY=/opt/homebrew/Cellar/mysql@8.4/8.4.4/lib/libmysqlclient.dylib
 ```
 
 ### Ubuntu/Debian
 
 ```bash
-# Install dependencies
+# Install core dependencies
 sudo apt update
-sudo apt install build-essential cmake libluajit-5.1-dev libuv1-dev libmysqlclient-dev
+sudo apt install build-essential cmake libluajit-5.1-dev libuv1-dev
 
-# Build
+# Install database libraries as needed
+sudo apt install libmysqlclient-dev   # For MySQL
+sudo apt install libpq-dev            # For PostgreSQL
+sudo apt install libsqlite3-dev       # For SQLite3
+
+# Build with your chosen backend
 mkdir build && cd build
-cmake ..
+cmake -DLUNET_DB=sqlite3 ..
 make
 ```
 
 ### CentOS/RHEL
 
 ```bash
-# Install dependencies
-sudo yum install gcc gcc-c++ cmake luajit-devel libuv-devel mysql-devel
+# Install core dependencies
+sudo yum install gcc gcc-c++ cmake luajit-devel libuv-devel
 
-# Build
+# Install database libraries as needed
+sudo yum install mysql-devel           # For MySQL
+sudo yum install postgresql-devel      # For PostgreSQL
+sudo yum install sqlite-devel          # For SQLite3
+
+# Build with your chosen backend
 mkdir build && cd build
-cmake ..
+cmake -DLUNET_DB=postgres ..
 make
 ```
 
@@ -213,13 +265,17 @@ end)
 
 ### Database Operations
 
+The `lunet.db` module provides a unified API regardless of which database backend was compiled in.
+
+**Note:** You must compile lunet with a database backend enabled to use this module. See [Database Backend Options](#database-backend-options) for details.
+
 ```lua
 local lunet = require('lunet')
-local mysql = require('lunet.mysql')
+local db = require('lunet.db')
 
 lunet.spawn(function()
     -- Connect to database
-    local conn, err = mysql.open({
+    local conn, err = db.open({
         host = "localhost",
         port = 3306,
         user = "root",
@@ -229,7 +285,7 @@ lunet.spawn(function()
     
     if conn then
         -- Execute query
-        local result, err = mysql.query(conn, "SELECT * FROM users")
+        local result, err = db.query(conn, "SELECT * FROM users")
         if result then
             for i, row in ipairs(result) do
                 print('User:', row.name, row.email)
@@ -237,15 +293,40 @@ lunet.spawn(function()
         end
         
         -- Execute update
-        local result, err = mysql.exec(conn, "INSERT INTO users (name, email) VALUES ('John', 'john@example.com')")
+        local result, err = db.exec(conn, "INSERT INTO users (name, email) VALUES ('John', 'john@example.com')")
         if result then
             print('Affected rows:', result.affected_rows)
             print('Last insert ID:', result.last_insert_id)
         end
         
-        mysql.close(conn)
+        db.close(conn)
     end
 end)
+```
+
+#### Running the Examples
+
+Complete working examples are provided in the `examples/` directory:
+
+**SQLite3** (no server required - runs purely local):
+```bash
+cd build
+cmake -DLUNET_DB=sqlite3 .. && make
+./lunet ../examples/sqlite3.lua
+```
+
+**MySQL** (requires MySQL server and `lunet_demo` database):
+```bash
+cd build
+cmake -DLUNET_DB=mysql .. && make
+./lunet ../examples/demo_mysql.lua
+```
+
+**PostgreSQL** (requires PostgreSQL server and `lunet_demo` database):
+```bash
+cd build
+cmake -DLUNET_DB=postgres .. && make
+./lunet ../examples/demo_postgresql.lua
 ```
 
 ## Usage
@@ -263,7 +344,7 @@ Lunet includes comprehensive type definitions for IDE support. The type files ar
 - `types/lunet.lua` - Core module types
 - `types/lunet/socket.lua` - Socket module types  
 - `types/lunet/fs.lua` - Filesystem module types
-- `types/lunet/mysql.lua` - MySQL module types
+- `types/lunet/db.lua` - Database module types (unified API)
 - `types/lunet/signal.lua` - Signal module types
 
 ## Performance
@@ -296,3 +377,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [LuaJIT](https://luajit.org/) - Fast Lua implementation
 - [libuv](https://libuv.org/) - Cross-platform asynchronous I/O
 - [MySQL](https://www.mysql.com/) - Database connectivity
+- [PostgreSQL](https://www.postgresql.org/) - Database connectivity
+- [SQLite](https://www.sqlite.org/) - Embedded database
