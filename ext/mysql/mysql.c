@@ -25,6 +25,11 @@ typedef struct {
   char charset[256];
 } db_open_ctx_t;
 
+typedef struct {
+  MYSQL* conn;
+  uv_mutex_t mu;
+} db_conn_t;
+
 static void db_open_work_cb(uv_work_t* req) {
   db_open_ctx_t* ctx = (db_open_ctx_t*)req->data;
   ctx->conn = mysql_init(NULL);
@@ -36,7 +41,8 @@ static void db_open_work_cb(uv_work_t* req) {
   mysql_options(ctx->conn, MYSQL_SET_CHARSET_NAME, ctx->charset);
 
   if (!mysql_real_connect(ctx->conn, ctx->host, ctx->user, ctx->password, ctx->database, ctx->port, NULL, 0)) {
-    strncpy(ctx->err, mysql_error(ctx->conn), sizeof(ctx->err));
+    strncpy(ctx->err, mysql_error(ctx->conn), sizeof(ctx->err) - 1);
+    ctx->err[sizeof(ctx->err) - 1] = '\0';
     mysql_close(ctx->conn);
     ctx->conn = NULL;
     return;
@@ -61,7 +67,9 @@ static void db_open_after_cb(uv_work_t* req, int status) {
   lua_pop(L, 1);
 
   if (ctx->conn) {
-    lua_pushlightuserdata(co, ctx->conn);
+    db_conn_t* wrapper = (db_conn_t*)lua_newuserdata(co, sizeof(db_conn_t));
+    wrapper->conn = ctx->conn;
+    uv_mutex_init(&wrapper->mu);
     lua_pushnil(co);
   } else {
     lua_pushnil(co);
@@ -91,17 +99,22 @@ int lunet_db_open(lua_State* L) {
   ctx->req.data = ctx;
 
   lua_getfield(L, 1, "host");
-  strncpy(ctx->host, luaL_optstring(L, -1, "localhost"), sizeof(ctx->host));
+  strncpy(ctx->host, luaL_optstring(L, -1, "localhost"), sizeof(ctx->host) - 1);
+  ctx->host[sizeof(ctx->host) - 1] = '\0';
   lua_getfield(L, 1, "port");
   ctx->port = luaL_optinteger(L, -1, 3306);
   lua_getfield(L, 1, "user");
-  strncpy(ctx->user, luaL_optstring(L, -1, "root"), sizeof(ctx->user));
+  strncpy(ctx->user, luaL_optstring(L, -1, "root"), sizeof(ctx->user) - 1);
+  ctx->user[sizeof(ctx->user) - 1] = '\0';
   lua_getfield(L, 1, "password");
-  strncpy(ctx->password, luaL_optstring(L, -1, ""), sizeof(ctx->password));
+  strncpy(ctx->password, luaL_optstring(L, -1, ""), sizeof(ctx->password) - 1);
+  ctx->password[sizeof(ctx->password) - 1] = '\0';
   lua_getfield(L, 1, "database");
-  strncpy(ctx->database, luaL_optstring(L, -1, ""), sizeof(ctx->database));
+  strncpy(ctx->database, luaL_optstring(L, -1, ""), sizeof(ctx->database) - 1);
+  ctx->database[sizeof(ctx->database) - 1] = '\0';
   lua_getfield(L, 1, "charset");
-  strncpy(ctx->charset, luaL_optstring(L, -1, "utf8mb4"), sizeof(ctx->charset));
+  strncpy(ctx->charset, luaL_optstring(L, -1, "utf8mb4"), sizeof(ctx->charset) - 1);
+  ctx->charset[sizeof(ctx->charset) - 1] = '\0';
   lua_pop(L, 6);
 
   lua_pushthread(L);
@@ -127,18 +140,22 @@ int lunet_db_close(lua_State* L) {
     lua_pushstring(L, "db.close requires a connection");
     return 1;
   }
-  if (!lua_isuserdata(L, 1) && !lua_islightuserdata(L, 1)) {
+  if (!lua_isuserdata(L, 1)) {
     lua_pushstring(L, "db.close requires a connection");
     return 1;
   }
 
-  MYSQL* conn = (MYSQL*)lua_touserdata(L, 1);
-  if (!conn) {
+  db_conn_t* wrapper = (db_conn_t*)lua_touserdata(L, 1);
+  if (!wrapper || !wrapper->conn) {
     lua_pushstring(L, "invalid connection");
     return 1;
   }
 
-  mysql_close(conn);
+  uv_mutex_lock(&wrapper->mu);
+  mysql_close(wrapper->conn);
+  wrapper->conn = NULL;
+  uv_mutex_unlock(&wrapper->mu);
+  uv_mutex_destroy(&wrapper->mu);
   lua_pushnil(L);
   return 1;
 }
@@ -148,7 +165,7 @@ typedef struct {
   lua_State* L;
   int co_ref;
 
-  MYSQL* conn;
+  db_conn_t* wrapper;
   const char* query;
 
   MYSQL_RES* result;
@@ -158,16 +175,27 @@ typedef struct {
 static void db_query_work_cb(uv_work_t* req) {
   db_query_ctx_t* ctx = (db_query_ctx_t*)req->data;
 
-  if (mysql_query(ctx->conn, ctx->query)) {
-    snprintf(ctx->err, sizeof(ctx->err), "%s", mysql_error(ctx->conn));
+  uv_mutex_lock(&ctx->wrapper->mu);
+  MYSQL* conn = ctx->wrapper->conn;
+  if (!conn) {
+    snprintf(ctx->err, sizeof(ctx->err), "%s", "invalid connection");
+    uv_mutex_unlock(&ctx->wrapper->mu);
     ctx->result = NULL;
     return;
   }
 
-  ctx->result = mysql_store_result(ctx->conn);
-  if (!ctx->result && mysql_field_count(ctx->conn) != 0) {
-    snprintf(ctx->err, sizeof(ctx->err), "mysql_store_result failed: %s", mysql_error(ctx->conn));
+  if (mysql_query(conn, ctx->query)) {
+    snprintf(ctx->err, sizeof(ctx->err), "%s", mysql_error(conn));
+    ctx->result = NULL;
+    uv_mutex_unlock(&ctx->wrapper->mu);
+    return;
   }
+
+  ctx->result = mysql_store_result(conn);
+  if (!ctx->result && mysql_field_count(conn) != 0) {
+    snprintf(ctx->err, sizeof(ctx->err), "mysql_store_result failed: %s", mysql_error(conn));
+  }
+  uv_mutex_unlock(&ctx->wrapper->mu);
 }
 
 static void db_query_after_cb(uv_work_t* req, int status) {
@@ -265,8 +293,8 @@ int lunet_db_query(lua_State* L) {
     return 2;
   }
 
-  MYSQL* conn = (MYSQL*)lua_touserdata(L, 1);
-  if (!conn) {
+  db_conn_t* wrapper = (db_conn_t*)lua_touserdata(L, 1);
+  if (!wrapper || !wrapper->conn) {
     lua_pushnil(L);
     lua_pushstring(L, "invalid connection");
     return 2;
@@ -282,7 +310,7 @@ int lunet_db_query(lua_State* L) {
   memset(ctx, 0, sizeof(*ctx));
   ctx->L = L;
   ctx->req.data = ctx;
-  ctx->conn = conn;
+  ctx->wrapper = wrapper;
   ctx->query = strdup(query);
   if (!ctx->query) {
     free(ctx);
@@ -312,7 +340,7 @@ typedef struct {
   lua_State* L;
   int co_ref;
 
-  MYSQL* conn;
+  db_conn_t* wrapper;
   const char* query;
 
   int affected_rows;
@@ -323,13 +351,23 @@ typedef struct {
 static void db_exec_work_cb(uv_work_t* req) {
   db_exec_ctx_t* ctx = (db_exec_ctx_t*)req->data;
 
-  if (mysql_query(ctx->conn, ctx->query)) {
-    snprintf(ctx->err, sizeof(ctx->err), "%s", mysql_error(ctx->conn));
+  uv_mutex_lock(&ctx->wrapper->mu);
+  MYSQL* conn = ctx->wrapper->conn;
+  if (!conn) {
+    snprintf(ctx->err, sizeof(ctx->err), "%s", "invalid connection");
+    uv_mutex_unlock(&ctx->wrapper->mu);
     return;
   }
 
-  ctx->affected_rows = mysql_affected_rows(ctx->conn);
-  ctx->insert_id = mysql_insert_id(ctx->conn);
+  if (mysql_query(conn, ctx->query)) {
+    snprintf(ctx->err, sizeof(ctx->err), "%s", mysql_error(conn));
+    uv_mutex_unlock(&ctx->wrapper->mu);
+    return;
+  }
+
+  ctx->affected_rows = (int)mysql_affected_rows(conn);
+  ctx->insert_id = mysql_insert_id(conn);
+  uv_mutex_unlock(&ctx->wrapper->mu);
 }
 
 static void db_exec_after_cb(uv_work_t* req, int status) {
@@ -383,8 +421,8 @@ int lunet_db_exec(lua_State* L) {
     return 2;
   }
 
-  MYSQL* conn = (MYSQL*)lua_touserdata(L, 1);
-  if (!conn) {
+  db_conn_t* wrapper = (db_conn_t*)lua_touserdata(L, 1);
+  if (!wrapper || !wrapper->conn) {
     lua_pushnil(L);
     lua_pushstring(L, "invalid connection");
     return 2;
@@ -401,7 +439,7 @@ int lunet_db_exec(lua_State* L) {
   memset(ctx, 0, sizeof(*ctx));
   ctx->L = L;
   ctx->req.data = ctx;
-  ctx->conn = conn;
+  ctx->wrapper = wrapper;
   ctx->query = strdup(query);
   if (!ctx->query) {
     free(ctx);

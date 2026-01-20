@@ -20,6 +20,11 @@ typedef struct {
   char conninfo[1024];
 } db_open_ctx_t;
 
+typedef struct {
+  PGconn* conn;
+  uv_mutex_t mu;
+} db_conn_t;
+
 static void db_open_work_cb(uv_work_t* req) {
   db_open_ctx_t* ctx = (db_open_ctx_t*)req->data;
 
@@ -50,7 +55,9 @@ static void db_open_after_cb(uv_work_t* req, int status) {
   lua_pop(L, 1);
 
   if (ctx->conn) {
-    lua_pushlightuserdata(co, ctx->conn);
+    db_conn_t* wrapper = (db_conn_t*)lua_newuserdata(co, sizeof(db_conn_t));
+    wrapper->conn = ctx->conn;
+    uv_mutex_init(&wrapper->mu);
     lua_pushnil(co);
   } else {
     lua_pushnil(co);
@@ -86,15 +93,27 @@ int lunet_db_open(lua_State* L) {
   char database[256] = "";
 
   lua_getfield(L, 1, "host");
-  if (lua_isstring(L, -1)) strncpy(host, lua_tostring(L, -1), sizeof(host));
+  if (lua_isstring(L, -1)) {
+    strncpy(host, lua_tostring(L, -1), sizeof(host) - 1);
+    host[sizeof(host) - 1] = '\0';
+  }
   lua_getfield(L, 1, "port");
   if (lua_isnumber(L, -1)) port = lua_tointeger(L, -1);
   lua_getfield(L, 1, "user");
-  if (lua_isstring(L, -1)) strncpy(user, lua_tostring(L, -1), sizeof(user));
+  if (lua_isstring(L, -1)) {
+    strncpy(user, lua_tostring(L, -1), sizeof(user) - 1);
+    user[sizeof(user) - 1] = '\0';
+  }
   lua_getfield(L, 1, "password");
-  if (lua_isstring(L, -1)) strncpy(password, lua_tostring(L, -1), sizeof(password));
+  if (lua_isstring(L, -1)) {
+    strncpy(password, lua_tostring(L, -1), sizeof(password) - 1);
+    password[sizeof(password) - 1] = '\0';
+  }
   lua_getfield(L, 1, "database");
-  if (lua_isstring(L, -1)) strncpy(database, lua_tostring(L, -1), sizeof(database));
+  if (lua_isstring(L, -1)) {
+    strncpy(database, lua_tostring(L, -1), sizeof(database) - 1);
+    database[sizeof(database) - 1] = '\0';
+  }
   lua_pop(L, 5);
 
   snprintf(ctx->conninfo, sizeof(ctx->conninfo),
@@ -126,18 +145,22 @@ int lunet_db_close(lua_State* L) {
     lua_pushstring(L, "db.close requires a connection");
     return 1;
   }
-  if (!lua_isuserdata(L, 1) && !lua_islightuserdata(L, 1)) {
+  if (!lua_isuserdata(L, 1)) {
     lua_pushstring(L, "db.close requires a connection");
     return 1;
   }
 
-  PGconn* conn = (PGconn*)lua_touserdata(L, 1);
-  if (!conn) {
+  db_conn_t* wrapper = (db_conn_t*)lua_touserdata(L, 1);
+  if (!wrapper || !wrapper->conn) {
     lua_pushstring(L, "invalid connection");
     return 1;
   }
 
-  PQfinish(conn);
+  uv_mutex_lock(&wrapper->mu);
+  PQfinish(wrapper->conn);
+  wrapper->conn = NULL;
+  uv_mutex_unlock(&wrapper->mu);
+  uv_mutex_destroy(&wrapper->mu);
   lua_pushnil(L);
   return 1;
 }
@@ -147,7 +170,7 @@ typedef struct {
   lua_State* L;
   int co_ref;
 
-  PGconn* conn;
+  db_conn_t* wrapper;
   char* query;
 
   PGresult* result;
@@ -157,15 +180,26 @@ typedef struct {
 static void db_query_work_cb(uv_work_t* req) {
   db_query_ctx_t* ctx = (db_query_ctx_t*)req->data;
 
-  ctx->result = PQexec(ctx->conn, ctx->query);
-  ExecStatusType status = PQresultStatus(ctx->result);
-
-  if (status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK) {
-    snprintf(ctx->err, sizeof(ctx->err), "%s", PQerrorMessage(ctx->conn));
-    PQclear(ctx->result);
+  uv_mutex_lock(&ctx->wrapper->mu);
+  PGconn* conn = ctx->wrapper->conn;
+  if (!conn) {
+    snprintf(ctx->err, sizeof(ctx->err), "%s", "invalid connection");
+    uv_mutex_unlock(&ctx->wrapper->mu);
     ctx->result = NULL;
     return;
   }
+
+  ctx->result = PQexec(conn, ctx->query);
+  ExecStatusType status = PQresultStatus(ctx->result);
+
+  if (status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK) {
+    snprintf(ctx->err, sizeof(ctx->err), "%s", PQerrorMessage(conn));
+    PQclear(ctx->result);
+    ctx->result = NULL;
+    uv_mutex_unlock(&ctx->wrapper->mu);
+    return;
+  }
+  uv_mutex_unlock(&ctx->wrapper->mu);
 }
 
 static void db_query_after_cb(uv_work_t* req, int status) {
@@ -257,8 +291,8 @@ int lunet_db_query(lua_State* L) {
     return 2;
   }
 
-  PGconn* conn = (PGconn*)lua_touserdata(L, 1);
-  if (!conn) {
+  db_conn_t* wrapper = (db_conn_t*)lua_touserdata(L, 1);
+  if (!wrapper || !wrapper->conn) {
     lua_pushnil(L);
     lua_pushstring(L, "invalid connection");
     return 2;
@@ -274,7 +308,7 @@ int lunet_db_query(lua_State* L) {
   memset(ctx, 0, sizeof(*ctx));
   ctx->L = L;
   ctx->req.data = ctx;
-  ctx->conn = conn;
+  ctx->wrapper = wrapper;
   ctx->query = strdup(query);
   if (!ctx->query) {
     free(ctx);
@@ -304,7 +338,7 @@ typedef struct {
   lua_State* L;
   int co_ref;
 
-  PGconn* conn;
+  db_conn_t* wrapper;
   char* query;
 
   long long affected_rows;
@@ -315,12 +349,21 @@ typedef struct {
 static void db_exec_work_cb(uv_work_t* req) {
   db_exec_ctx_t* ctx = (db_exec_ctx_t*)req->data;
 
-  PGresult* result = PQexec(ctx->conn, ctx->query);
+  uv_mutex_lock(&ctx->wrapper->mu);
+  PGconn* conn = ctx->wrapper->conn;
+  if (!conn) {
+    snprintf(ctx->err, sizeof(ctx->err), "%s", "invalid connection");
+    uv_mutex_unlock(&ctx->wrapper->mu);
+    return;
+  }
+
+  PGresult* result = PQexec(conn, ctx->query);
   ExecStatusType status = PQresultStatus(result);
 
   if (status != PGRES_COMMAND_OK && status != PGRES_TUPLES_OK) {
-    snprintf(ctx->err, sizeof(ctx->err), "%s", PQerrorMessage(ctx->conn));
+    snprintf(ctx->err, sizeof(ctx->err), "%s", PQerrorMessage(conn));
     PQclear(result);
+    uv_mutex_unlock(&ctx->wrapper->mu);
     return;
   }
 
@@ -329,6 +372,7 @@ static void db_exec_work_cb(uv_work_t* req) {
   ctx->insert_id = (unsigned long long)PQoidValue(result);
 
   PQclear(result);
+  uv_mutex_unlock(&ctx->wrapper->mu);
 }
 
 static void db_exec_after_cb(uv_work_t* req, int status) {
@@ -382,8 +426,8 @@ int lunet_db_exec(lua_State* L) {
     return 2;
   }
 
-  PGconn* conn = (PGconn*)lua_touserdata(L, 1);
-  if (!conn) {
+  db_conn_t* wrapper = (db_conn_t*)lua_touserdata(L, 1);
+  if (!wrapper || !wrapper->conn) {
     lua_pushnil(L);
     lua_pushstring(L, "invalid connection");
     return 2;
@@ -400,7 +444,7 @@ int lunet_db_exec(lua_State* L) {
   memset(ctx, 0, sizeof(*ctx));
   ctx->L = L;
   ctx->req.data = ctx;
-  ctx->conn = conn;
+  ctx->wrapper = wrapper;
   ctx->query = strdup(query);
   if (!ctx->query) {
     free(ctx);
