@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [ simbo1905, windows11, cursor/cross-platform-build-workflow-8f23 ]
+    branches: [ simbo1905, windows11, cursor/fix-ci-macos-windows ]
   pull_request:
     branches: [ simbo1905 ]
   workflow_dispatch:
@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
     - uses: actions/checkout@v4
@@ -36,8 +36,10 @@ jobs:
     - name: Install Dependencies (macOS)
       if: runner.os == 'macOS'
       run: |
-        brew install cmake libuv libsodium sqlite postgresql luajit luarocks
+        brew install cmake libuv libsodium sqlite libpq luajit luarocks
         luarocks install busted
+        # Link libpq to make it findable by CMake
+        brew link --force libpq
 
     - name: Install Dependencies (Windows)
       if: runner.os == 'Windows'
@@ -46,7 +48,10 @@ jobs:
 
     - name: Configure CMake (Windows)
       if: runner.os == 'Windows'
-      run: cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/cmake/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release
+      shell: pwsh
+      run: |
+        Write-Host "VCPKG_INSTALLATION_ROOT: $env:VCPKG_INSTALLATION_ROOT"
+        cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/cmake/vcpkg.cmake" -DCMAKE_BUILD_TYPE=Release
 
     - name: Configure CMake (Unix)
       if: runner.os != 'Windows'
@@ -74,7 +79,8 @@ jobs:
       run: |
         # Start server in background
         if [ "$RUNNER_OS" == "Windows" ]; then
-          ./bin/start_server.ps1 app/main.lua
+          # Use powershell to run the ps1 script from bash
+          powershell -ExecutionPolicy Bypass -File bin/start_server.ps1 app/main.lua
         else
           ./bin/start_server.sh app/main.lua
         fi
@@ -84,7 +90,7 @@ jobs:
         
         # Stop server
         if [ "$RUNNER_OS" == "Windows" ]; then
-          ./bin/stop_server.ps1
+          powershell -ExecutionPolicy Bypass -File bin/stop_server.ps1
         else
           ./bin/stop_server.sh
         fi
