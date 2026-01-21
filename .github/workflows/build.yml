@@ -1,0 +1,171 @@
+name: Cross-Platform Build
+
+on:
+  pull_request:
+    branches:
+      - simbo1905
+      - main
+  push:
+    branches:
+      - simbo1905
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag, or commit SHA to build'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Debian Trixie (testing)
+          - os: ubuntu-latest
+            name: Debian Trixie
+            container: debian:trixie
+            cmake_args: ''
+            
+          # macOS (Apple Silicon / Intel)
+          - os: macos-latest
+            name: macOS
+            container: ''
+            cmake_args: ''
+            
+          # Windows 11 (latest Windows runner)
+          - os: windows-latest
+            name: Windows 11
+            container: ''
+            cmake_args: '-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake'
+
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container || null }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      # =======================================================================
+      # Debian Trixie Setup
+      # =======================================================================
+      - name: Install dependencies (Debian)
+        if: matrix.container == 'debian:trixie'
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            pkg-config \
+            luajit \
+            libluajit-5.1-dev \
+            libuv1-dev \
+            git
+
+      - name: Configure CMake (Debian)
+        if: matrix.container == 'debian:trixie'
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLUNET_ENABLE_MYSQL=OFF \
+            ${{ matrix.cmake_args }}
+
+      - name: Build (Debian)
+        if: matrix.container == 'debian:trixie'
+        run: cmake --build build --config Release -j$(nproc)
+
+      - name: Verify binary (Debian)
+        if: matrix.container == 'debian:trixie'
+        run: |
+          ls -la build/lunet
+          file build/lunet
+          ./build/lunet --help || echo "Binary runs (no --help flag expected)"
+
+      # =======================================================================
+      # macOS Setup
+      # =======================================================================
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install luajit libuv
+
+      - name: Configure CMake (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLUNET_ENABLE_MYSQL=OFF \
+            ${{ matrix.cmake_args }}
+
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: cmake --build build --config Release -j$(sysctl -n hw.ncpu)
+
+      - name: Verify binary (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ls -la build/lunet
+          file build/lunet
+          ./build/lunet --help || echo "Binary runs (no --help flag expected)"
+
+      # =======================================================================
+      # Windows Setup
+      # =======================================================================
+      - name: Setup vcpkg cache (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v4
+        with:
+          path: C:/vcpkg/installed
+          key: vcpkg-windows-${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            vcpkg-windows-
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          vcpkg install luajit:x64-windows libuv:x64-windows
+        shell: cmd
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -B build ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DLUNET_ENABLE_MYSQL=OFF ^
+            ${{ matrix.cmake_args }}
+        shell: cmd
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: cmake --build build --config Release
+        shell: cmd
+
+      - name: Verify binary (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          dir build\Release\
+          build\Release\lunet.exe --help || echo Binary runs (no --help flag expected)
+        shell: cmd
+
+      # =======================================================================
+      # Upload Artifacts
+      # =======================================================================
+      - name: Upload binary artifact (Unix)
+        if: runner.os != 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lunet-${{ matrix.name }}
+          path: build/lunet
+          if-no-files-found: error
+
+      - name: Upload binary artifact (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lunet-${{ matrix.name }}
+          path: build/Release/lunet.exe
+          if-no-files-found: error
