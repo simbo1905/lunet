@@ -139,8 +139,15 @@ endif()
 
 target_link_libraries(lunet PRIVATE
     ${LUAJIT_LIBRARIES}
-    PostgreSQL::PQ
 )
+
+if(TARGET PostgreSQL::PQ)
+    target_link_libraries(lunet PRIVATE PostgreSQL::PQ)
+elseif(TARGET PostgreSQL::PostgreSQL)
+    target_link_libraries(lunet PRIVATE PostgreSQL::PostgreSQL)
+else()
+    target_link_libraries(lunet PRIVATE ${PostgreSQL_LIBRARIES})
+endif()
 
 if(LUNET_ENABLE_MYSQL)
     target_link_libraries(lunet PRIVATE ${MYSQL_LIBRARY})
