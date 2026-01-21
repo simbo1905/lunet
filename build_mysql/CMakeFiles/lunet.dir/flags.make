@@ -4,7 +4,7 @@
 # compile C with /usr/bin/cc
 C_DEFINES = -DLUNET_HAS_DB
 
-C_INCLUDES = -I/Users/Shared/lunet/include -I/opt/homebrew/include/luajit-2.1 -I/opt/homebrew/include -I/Users/Shared/lunet/ext/mysql -I/opt/homebrew/include/mysql
+C_INCLUDES = -I/Users/Shared/lunet/ext/mysql -I/opt/homebrew/opt/mysql/include -I/Users/Shared/lunet/include -I/opt/homebrew/opt/luajit/include/luajit-2.1 -I/opt/homebrew/opt/libuv/include -I/opt/homebrew/opt/libsodium/include
 
 C_FLAGSarm64 = -std=gnu99 -arch arm64
 

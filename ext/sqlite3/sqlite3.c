@@ -1,4 +1,4 @@
-#include "sqlite3.h"
+#include "lunet_sqlite3.h"
 
 #include <lauxlib.h>
 #include <lua.h>

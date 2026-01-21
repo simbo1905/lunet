@@ -6,12 +6,27 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Helper macro to find dependencies via Config, PkgConfig, or standard paths
 macro(find_dependency_flexible NAME PKG_NAME HEADER LIB_NAMES)
-    # 1. Try Config mode (vcpkg, etc.)
-    find_package(${NAME} CONFIG QUIET)
-    
-    if(${NAME}_FOUND)
-        message(STATUS "Found ${NAME} via Config")
+    if(${NAME}_INCLUDE_DIR AND ${NAME}_LIBRARY)
+        message(STATUS "Using manually specified ${NAME}")
+        set(${NAME}_INCLUDE_DIRS ${${NAME}_INCLUDE_DIR})
+        set(${NAME}_LIBRARIES ${${NAME}_LIBRARY})
+        set(${NAME}_FOUND TRUE)
     else()
+        # 1. Try Config mode (vcpkg, etc.)
+        find_package(${NAME} CONFIG QUIET)
+    
+        if(${NAME}_FOUND)
+            message(STATUS "Found ${NAME} via Config")
+            # Handle imported targets from Config packages
+            if(TARGET ${PKG_NAME}::${PKG_NAME})
+                set(${NAME}_LIBRARIES ${PKG_NAME}::${PKG_NAME})
+            elseif(TARGET libuv::uv)
+                # Special case for libuv
+                set(${NAME}_LIBRARIES libuv::uv)
+            endif()
+            # Include dirs are handled by imported targets
+            set(${NAME}_INCLUDE_DIRS "")
+        else()
         # 2. Try PkgConfig
         find_package(PkgConfig QUIET)
         if(PKG_CONFIG_FOUND)
@@ -24,13 +39,23 @@ macro(find_dependency_flexible NAME PKG_NAME HEADER LIB_NAMES)
             set(${NAME}_LIBRARIES ${${NAME}_PKG_LIBRARIES})
             set(${NAME}_FOUND TRUE)
         else()
-            # 3. Try standard paths
+            # 3. Try standard paths including Homebrew
             find_path(${NAME}_INCLUDE_DIR ${HEADER}
                 HINTS ENV ${NAME}_DIR
-                PATH_SUFFIXES include
+                PATHS /opt/homebrew/include /opt/homebrew/opt/luajit/include/luajit-2.1
+                      /opt/homebrew/opt/libuv/include /opt/homebrew/opt/libsodium/include
+                      /opt/homebrew/opt/sqlite/include /opt/homebrew/opt/libpq/include
+                      /opt/homebrew/opt/mysql/include
+                      /usr/local/include /usr/include
+                PATH_SUFFIXES include luajit-2.1 mysql
             )
             find_library(${NAME}_LIBRARY NAMES ${LIB_NAMES}
                 HINTS ENV ${NAME}_DIR
+                PATHS /opt/homebrew/lib /opt/homebrew/opt/luajit/lib
+                      /opt/homebrew/opt/libuv/lib /opt/homebrew/opt/libsodium/lib
+                      /opt/homebrew/opt/sqlite/lib /opt/homebrew/opt/libpq/lib
+                      /opt/homebrew/opt/mysql/lib
+                      /usr/local/lib /usr/lib
                 PATH_SUFFIXES lib
             )
             if(${NAME}_INCLUDE_DIR AND ${NAME}_LIBRARY)
@@ -40,6 +65,7 @@ macro(find_dependency_flexible NAME PKG_NAME HEADER LIB_NAMES)
                 set(${NAME}_FOUND TRUE)
             endif()
         endif()
+    endif()
     endif()
 
     if(NOT ${NAME}_FOUND)
@@ -53,16 +79,10 @@ endmacro()
 find_dependency_flexible(LUAJIT luajit luajit.h "luajit-5.1;luajit;lua51")
 
 # libuv
-find_package(libuv CONFIG QUIET)
-if(NOT libuv_FOUND)
-    find_dependency_flexible(LIBUV libuv uv.h "uv;libuv")
-endif()
+find_dependency_flexible(LIBUV libuv uv.h "uv;libuv")
 
 # libsodium
-find_package(unofficial-sodium CONFIG QUIET)
-if(NOT unofficial-sodium_FOUND)
-    find_dependency_flexible(SODIUM libsodium sodium.h "sodium;libsodium")
-endif()
+find_dependency_flexible(SODIUM libsodium sodium.h "sodium;libsodium")
 
 # === Database Backend Option ===
 set(LUNET_DB "mysql" CACHE STRING "Database backend: none, mysql, postgres, sqlite3")

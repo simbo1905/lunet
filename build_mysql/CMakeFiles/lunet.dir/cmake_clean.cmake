@@ -7,8 +7,6 @@ file(REMOVE_RECURSE
   "CMakeFiles/lunet.dir/src/fs.c.o.d"
   "CMakeFiles/lunet.dir/src/main.c.o"
   "CMakeFiles/lunet.dir/src/main.c.o.d"
-  "CMakeFiles/lunet.dir/src/mysql.c.o"
-  "CMakeFiles/lunet.dir/src/mysql.c.o.d"
   "CMakeFiles/lunet.dir/src/rt.c.o"
   "CMakeFiles/lunet.dir/src/rt.c.o.d"
   "CMakeFiles/lunet.dir/src/signal.c.o"

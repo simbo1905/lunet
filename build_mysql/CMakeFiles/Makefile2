@@ -85,12 +85,12 @@ clean: CMakeFiles/lunet.dir/clean
 CMakeFiles/lunet.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lunet.dir/build.make CMakeFiles/lunet.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lunet.dir/build.make CMakeFiles/lunet.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11 "Built target lunet"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10 "Built target lunet"
 .PHONY : CMakeFiles/lunet.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/lunet.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /Users/Shared/lunet/build_mysql/CMakeFiles 11
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/Shared/lunet/build_mysql/CMakeFiles 10
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/lunet.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/Shared/lunet/build_mysql/CMakeFiles 0
 .PHONY : CMakeFiles/lunet.dir/rule
@@ -102,7 +102,7 @@ lunet: CMakeFiles/lunet.dir/rule
 # codegen rule for target.
 CMakeFiles/lunet.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lunet.dir/build.make CMakeFiles/lunet.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10,11 "Finished codegen for target lunet"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9,10 "Finished codegen for target lunet"
 .PHONY : CMakeFiles/lunet.dir/codegen
 
 # clean rule for target.

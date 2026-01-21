@@ -1,6 +1,6 @@
 CMakeFiles/lunet.dir/src/co.c.o: /Users/Shared/lunet/src/co.c \
   /Users/Shared/lunet/include/co.h \
-  /opt/homebrew/include/luajit-2.1/lua.h \
+  /opt/homebrew/opt/luajit/include/luajit-2.1/lua.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdarg.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg_header_macro.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg___gnuc_va_list.h \
@@ -16,8 +16,8 @@ CMakeFiles/lunet.dir/src/co.c.o: /Users/Shared/lunet/src/co.c \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_wchar_t.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_null.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_offsetof.h \
-  /opt/homebrew/include/luajit-2.1/luaconf.h \
-  /opt/homebrew/include/luajit-2.1/lauxlib.h \
+  /opt/homebrew/opt/luajit/include/luajit-2.1/luaconf.h \
+  /opt/homebrew/opt/luajit/include/luajit-2.1/lauxlib.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdio.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdio.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_bounds.h \

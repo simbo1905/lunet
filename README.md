@@ -16,22 +16,37 @@ Docs: [README_realworld.md](README_realworld.md) | [README_realworld-CN.md](READ
 
 ### Demo Prerequisites
 
-- CMake 3.12+, LuaJIT 2.1+, libuv 1.x, libsodium, SQLite3, PostgreSQL (client libs)
-- **Database Choice**: The database driver is selected at build time via CMake.
-  - Default: **SQLite3** (no external service required)
-  - Optional: **MySQL/MariaDB** (requires `conduit` database setup)
+- CMake 3.12+, LuaJIT 2.1+, libuv 1.x, libsodium
+- **Database Backend**: Selected at compile time via `LUNET_DB` CMake variable
+  - **sqlite3** (default): No external service required
+  - **postgres**: Requires PostgreSQL server and `libpq` library
+  - **mysql**: Requires MySQL/MariaDB server and `libmysqlclient` library
 
 ### Build Configuration
 
-**Default (SQLite3):**
+**Using Make (recommended):**
 ```bash
-cmake -B build
-cmake --build build
+# Default SQLite build
+make build
+
+# Or specify database backend
+make build-sqlite   # SQLite3
+make build-postgres # PostgreSQL  
+make build-mysql    # MySQL/MariaDB
 ```
 
-**Enable MySQL:**
+**Using CMake directly:**
 ```bash
-cmake -B build -DLUNET_ENABLE_MYSQL=ON
+# SQLite (default)
+cmake -B build -DLUNET_DB=sqlite3
+cmake --build build
+
+# PostgreSQL
+cmake -B build -DLUNET_DB=postgres
+cmake --build build
+
+# MySQL
+cmake -B build -DLUNET_DB=mysql
 cmake --build build
 ```
 
@@ -120,11 +135,19 @@ Lunet is a coroutine-based networking library that provides synchronous APIs wit
 - `stat(path)`: Get file statistics
 - `scandir(path)`: List directory contents
 
-### MySQL Module (`lunet.mysql`)
+### Database Module (`lunet.db`)
+
+The database module provides a unified API across SQLite, PostgreSQL, and MySQL backends:
+
 - `open(params)`: Open database connection
 - `close(conn)`: Close database connection
-- `query(conn, query)`: Execute SELECT query
-- `exec(conn, query)`: Execute INSERT/UPDATE/DELETE
+- `query(conn, sql)`: Execute SELECT query, returns rows
+- `exec(conn, sql)`: Execute INSERT/UPDATE/DELETE
+- `escape(str)`: Escape string for safe SQL interpolation (uses backend-specific escaping syntax)
+
+The backend is selected at compile time. Each backend uses its appropriate escaping syntax:
+- **SQLite/PostgreSQL**: Quote doubling (`'` → `''`)
+- **MySQL**: Backslash escaping (`'` → `\'`, `\` → `\\`)
 
 ### Signal Module (`lunet.signal`)
 - `wait(signal)`: Wait for system signal
@@ -136,7 +159,11 @@ Lunet is a coroutine-based networking library that provides synchronous APIs wit
 - CMake 3.10+
 - LuaJIT 2.1+
 - libuv 1.x
-- MySQL client library (for MySQL module)
+- libsodium
+- **Database Library** (one of the following, matching your build choice):
+  - SQLite3
+  - PostgreSQL (`libpq`)
+  - MySQL client library (`libmysqlclient`)
 
 ### Build from Source
 
@@ -162,25 +189,38 @@ cmake .. \
   -DMYSQL_LIBRARY=/path/to/mysql/lib/libmysqlclient.dylib
 ```
 
+> **Note**: For macOS users with Homebrew, see the [macOS with Homebrew](#macos-with-homebrew) section below for automatic path detection.
+
 ### macOS with Homebrew
 
 ```bash
 # Install dependencies
-brew install luajit libuv mysql
+brew install luajit libuv libsodium sqlite postgresql mysql
 
-# Build with automatic detection
-mkdir build && cd build
-cmake ..
-make
+# Build with automatic detection (recommended)
+# CMake will automatically find Homebrew libraries in /opt/homebrew
+make build           # SQLite (default)
+make build-postgres  # PostgreSQL
+make build-mysql     # MySQL
 
-# Or specify Homebrew paths explicitly
-cmake .. \
-  -DLUAJIT_INCLUDE_DIR=/opt/homebrew/include/luajit-2.1 \
-  -DLUAJIT_LIBRARY=/opt/homebrew/lib/libluajit-5.1.dylib \
-  -DLIBUV_INCLUDE_DIR=/opt/homebrew/include \
-  -DLIBUV_LIBRARY=/opt/homebrew/lib/libuv.dylib \
-  -DMYSQL_INCLUDE_DIR=/opt/homebrew/Cellar/mysql@8.4/8.4.4/include \
-  -DMYSQL_LIBRARY=/opt/homebrew/Cellar/mysql@8.4/8.4.4/lib/libmysqlclient.dylib
+# Finding library paths (for manual cmake invocation)
+# Use `brew --prefix <package>` to find installation paths:
+brew --prefix luajit     # /opt/homebrew/opt/luajit
+brew --prefix libuv      # /opt/homebrew/opt/libuv
+brew --prefix libsodium  # /opt/homebrew/opt/libsodium
+brew --prefix sqlite     # /opt/homebrew/opt/sqlite
+brew --prefix libpq      # /opt/homebrew/opt/libpq
+brew --prefix mysql      # /opt/homebrew/opt/mysql
+
+# Manual CMake with explicit paths (if auto-detection fails):
+cmake -B build -DLUNET_DB=sqlite3 \
+  -DLUAJIT_INCLUDE_DIR=$(brew --prefix luajit)/include/luajit-2.1 \
+  -DLUAJIT_LIBRARY=$(brew --prefix luajit)/lib/libluajit-5.1.dylib \
+  -DSODIUM_INCLUDE_DIR=$(brew --prefix libsodium)/include \
+  -DSODIUM_LIBRARY=$(brew --prefix libsodium)/lib/libsodium.dylib \
+  -DSQLITE3_INCLUDE_DIR=$(brew --prefix sqlite)/include \
+  -DSQLITE3_LIBRARY=$(brew --prefix sqlite)/lib/libsqlite3.dylib
+cmake --build build
 ```
 
 ### Ubuntu/Debian
@@ -284,35 +324,45 @@ end)
 
 ```lua
 local lunet = require('lunet')
-local mysql = require('lunet.mysql')
+local db = require('lunet.db')
 
 lunet.spawn(function()
-    -- Connect to database
-    local conn, err = mysql.open({
+    -- Connect to database (params depend on backend)
+    -- SQLite: { path = "database.sqlite3" }
+    -- PostgreSQL: { host, port, user, password, database }
+    -- MySQL: { host, port, user, password, database }
+    local conn, err = db.open({
         host = "localhost",
-        port = 3306,
-        user = "root",
+        port = 5432,
+        user = "postgres",
         password = "password",
         database = "testdb"
     })
     
     if conn then
+        -- Safe string escaping (uses native backend escaping)
+        local safe_name = db.escape("O'Reilly")
+        
         -- Execute query
-        local result, err = mysql.query(conn, "SELECT * FROM users")
+        local result, err = db.query(conn, "SELECT * FROM users")
         if result then
             for i, row in ipairs(result) do
                 print('User:', row.name, row.email)
             end
         end
         
-        -- Execute update
-        local result, err = mysql.exec(conn, "INSERT INTO users (name, email) VALUES ('John', 'john@example.com')")
+        -- Execute insert with escaped values
+        local sql = string.format(
+            "INSERT INTO users (name, email) VALUES (%s, %s)",
+            db.escape("John"),
+            db.escape("john@example.com")
+        )
+        local result, err = db.exec(conn, sql)
         if result then
-            print('Affected rows:', result.affected_rows)
-            print('Last insert ID:', result.last_insert_id)
+            print('Insert successful')
         end
         
-        mysql.close(conn)
+        db.close(conn)
     end
 end)
 ```
@@ -332,7 +382,7 @@ Lunet includes comprehensive type definitions for IDE support. The type files ar
 - `types/lunet.lua` - Core module types
 - `types/lunet/socket.lua` - Socket module types  
 - `types/lunet/fs.lua` - Filesystem module types
-- `types/lunet/mysql.lua` - MySQL module types
+- `types/lunet/db.lua` - Unified database module types
 - `types/lunet/signal.lua` - Signal module types
 
 ## Performance
@@ -360,7 +410,7 @@ Contributions are welcome! Please feel free to submit issues and pull requests.
 
 | Example | Description |
 |---------|-------------|
-| [01_json.lua](examples/01_json.lua) | Pure Lua JSON encoding with MySQL integration |
+| [01_json.lua](examples/01_json.lua) | Pure Lua JSON encoding with database integration |
 | [02_routing.lua](examples/02_routing.lua) | HTTP routing with URL parameter extraction (`:id`) |
 | [03_mcp_sse.lua](examples/03_mcp_sse.lua) | MCP SSE server with Tavily search (18x smaller than Node.js) |
 | [mcp_stdio_pure.lua](examples/mcp_stdio_pure.lua) | Pure Lua stdio MCP for ablation testing |

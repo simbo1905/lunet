@@ -72,10 +72,24 @@ include CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/codegen:
 .PHONY : CMakeFiles/lunet.dir/codegen
 
+CMakeFiles/lunet.dir/src/main.c.o: CMakeFiles/lunet.dir/flags.make
+CMakeFiles/lunet.dir/src/main.c.o: /Users/Shared/lunet/src/main.c
+CMakeFiles/lunet.dir/src/main.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_postgres/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building C object CMakeFiles/lunet.dir/src/main.c.o"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/main.c.o -MF CMakeFiles/lunet.dir/src/main.c.o.d -o CMakeFiles/lunet.dir/src/main.c.o -c /Users/Shared/lunet/src/main.c
+
+CMakeFiles/lunet.dir/src/main.c.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing C source to CMakeFiles/lunet.dir/src/main.c.i"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /Users/Shared/lunet/src/main.c > CMakeFiles/lunet.dir/src/main.c.i
+
+CMakeFiles/lunet.dir/src/main.c.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/lunet.dir/src/main.c.s"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /Users/Shared/lunet/src/main.c -o CMakeFiles/lunet.dir/src/main.c.s
+
 CMakeFiles/lunet.dir/src/co.c.o: CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/src/co.c.o: /Users/Shared/lunet/src/co.c
 CMakeFiles/lunet.dir/src/co.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_postgres/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building C object CMakeFiles/lunet.dir/src/co.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_postgres/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building C object CMakeFiles/lunet.dir/src/co.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/co.c.o -MF CMakeFiles/lunet.dir/src/co.c.o.d -o CMakeFiles/lunet.dir/src/co.c.o -c /Users/Shared/lunet/src/co.c
 
 CMakeFiles/lunet.dir/src/co.c.i: cmake_force
@@ -89,7 +103,7 @@ CMakeFiles/lunet.dir/src/co.c.s: cmake_force
 CMakeFiles/lunet.dir/src/fs.c.o: CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/src/fs.c.o: /Users/Shared/lunet/src/fs.c
 CMakeFiles/lunet.dir/src/fs.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_postgres/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building C object CMakeFiles/lunet.dir/src/fs.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_postgres/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building C object CMakeFiles/lunet.dir/src/fs.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/fs.c.o -MF CMakeFiles/lunet.dir/src/fs.c.o.d -o CMakeFiles/lunet.dir/src/fs.c.o -c /Users/Shared/lunet/src/fs.c
 
 CMakeFiles/lunet.dir/src/fs.c.i: cmake_force
@@ -99,20 +113,6 @@ CMakeFiles/lunet.dir/src/fs.c.i: cmake_force
 CMakeFiles/lunet.dir/src/fs.c.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/lunet.dir/src/fs.c.s"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /Users/Shared/lunet/src/fs.c -o CMakeFiles/lunet.dir/src/fs.c.s
-
-CMakeFiles/lunet.dir/src/main.c.o: CMakeFiles/lunet.dir/flags.make
-CMakeFiles/lunet.dir/src/main.c.o: /Users/Shared/lunet/src/main.c
-CMakeFiles/lunet.dir/src/main.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_postgres/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building C object CMakeFiles/lunet.dir/src/main.c.o"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/main.c.o -MF CMakeFiles/lunet.dir/src/main.c.o.d -o CMakeFiles/lunet.dir/src/main.c.o -c /Users/Shared/lunet/src/main.c
-
-CMakeFiles/lunet.dir/src/main.c.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing C source to CMakeFiles/lunet.dir/src/main.c.i"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /Users/Shared/lunet/src/main.c > CMakeFiles/lunet.dir/src/main.c.i
-
-CMakeFiles/lunet.dir/src/main.c.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/lunet.dir/src/main.c.s"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /Users/Shared/lunet/src/main.c -o CMakeFiles/lunet.dir/src/main.c.s
 
 CMakeFiles/lunet.dir/src/rt.c.o: CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/src/rt.c.o: /Users/Shared/lunet/src/rt.c
@@ -200,9 +200,9 @@ CMakeFiles/lunet.dir/ext/postgres/postgres.c.s: cmake_force
 
 # Object files for target lunet
 lunet_OBJECTS = \
+"CMakeFiles/lunet.dir/src/main.c.o" \
 "CMakeFiles/lunet.dir/src/co.c.o" \
 "CMakeFiles/lunet.dir/src/fs.c.o" \
-"CMakeFiles/lunet.dir/src/main.c.o" \
 "CMakeFiles/lunet.dir/src/rt.c.o" \
 "CMakeFiles/lunet.dir/src/signal.c.o" \
 "CMakeFiles/lunet.dir/src/socket.c.o" \
@@ -213,9 +213,9 @@ lunet_OBJECTS = \
 # External object files for target lunet
 lunet_EXTERNAL_OBJECTS =
 
+lunet: CMakeFiles/lunet.dir/src/main.c.o
 lunet: CMakeFiles/lunet.dir/src/co.c.o
 lunet: CMakeFiles/lunet.dir/src/fs.c.o
-lunet: CMakeFiles/lunet.dir/src/main.c.o
 lunet: CMakeFiles/lunet.dir/src/rt.c.o
 lunet: CMakeFiles/lunet.dir/src/signal.c.o
 lunet: CMakeFiles/lunet.dir/src/socket.c.o
@@ -223,8 +223,9 @@ lunet: CMakeFiles/lunet.dir/src/stl.c.o
 lunet: CMakeFiles/lunet.dir/src/timer.c.o
 lunet: CMakeFiles/lunet.dir/ext/postgres/postgres.c.o
 lunet: CMakeFiles/lunet.dir/build.make
-lunet: /opt/homebrew/lib/libluajit-5.1.dylib
-lunet: /opt/homebrew/lib/libuv.dylib
+lunet: /opt/homebrew/opt/luajit/lib/libluajit-5.1.dylib
+lunet: /opt/homebrew/opt/libuv/lib/libuv.dylib
+lunet: /opt/homebrew/opt/libsodium/lib/libsodium.dylib
 lunet: /opt/homebrew/opt/libpq/lib/libpq.dylib
 lunet: CMakeFiles/lunet.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/Shared/lunet/build_postgres/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking C executable lunet"

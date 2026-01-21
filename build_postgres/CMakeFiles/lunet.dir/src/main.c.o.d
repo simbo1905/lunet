@@ -1,5 +1,5 @@
 CMakeFiles/lunet.dir/src/main.c.o: /Users/Shared/lunet/src/main.c \
-  /opt/homebrew/include/luajit-2.1/lauxlib.h \
+  /opt/homebrew/opt/luajit/include/luajit-2.1/lauxlib.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stddef.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stddef.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_header_macro.h \
@@ -47,7 +47,7 @@ CMakeFiles/lunet.dir/src/main.c.o: /Users/Shared/lunet/src/main.c \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_ssize_t.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_stdio.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/secure/_common.h \
-  /opt/homebrew/include/luajit-2.1/lua.h \
+  /opt/homebrew/opt/luajit/include/luajit-2.1/lua.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdarg.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg_header_macro.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg___gnuc_va_list.h \
@@ -56,8 +56,8 @@ CMakeFiles/lunet.dir/src/main.c.o: /Users/Shared/lunet/src/main.c \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg___va_copy.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg_va_copy.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_rsize_t.h \
-  /opt/homebrew/include/luajit-2.1/luaconf.h \
-  /opt/homebrew/include/luajit-2.1/lualib.h \
+  /opt/homebrew/opt/luajit/include/luajit-2.1/luaconf.h \
+  /opt/homebrew/opt/luajit/include/luajit-2.1/lualib.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/stdlib.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_stdlib.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/wait.h \
@@ -104,13 +104,14 @@ CMakeFiles/lunet.dir/src/main.c.o: /Users/Shared/lunet/src/main.c \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/_abort.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_dev_t.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_mode_t.h \
-  /opt/homebrew/include/uv.h /opt/homebrew/include/uv/errno.h \
+  /opt/homebrew/opt/libuv/include/uv.h \
+  /opt/homebrew/opt/libuv/include/uv/errno.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/errno.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/errno.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_errno_t.h \
-  /opt/homebrew/include/uv/version.h \
+  /opt/homebrew/opt/libuv/include/uv/version.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/math.h \
-  /opt/homebrew/include/uv/unix.h \
+  /opt/homebrew/opt/libuv/include/uv/unix.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/types.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_u_char.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_u_short.h \
@@ -200,8 +201,8 @@ CMakeFiles/lunet.dir/src/main.c.o: /Users/Shared/lunet/src/main.c \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/qos.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/sys/_types/_mach_port_t.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/signal.h \
-  /opt/homebrew/include/uv/threadpool.h \
-  /opt/homebrew/include/uv/darwin.h \
+  /opt/homebrew/opt/libuv/include/uv/threadpool.h \
+  /opt/homebrew/opt/libuv/include/uv/darwin.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach/mach.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach/std_types.h \
   /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/mach/boolean.h \

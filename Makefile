@@ -2,9 +2,20 @@
 
 all: build ## Build the project (default)
 
-build: ## Compile C dependencies using CMake
+LUNET_DB ?= sqlite3
+
+build: ## Compile C dependencies using CMake (use LUNET_DB=mysql|postgres|sqlite3)
 	mkdir -p build
-	cd build && cmake .. && make
+	cd build && cmake -DLUNET_DB=$(LUNET_DB) .. && make
+
+build-sqlite: ## Build with SQLite3 backend
+	$(MAKE) build LUNET_DB=sqlite3
+
+build-postgres: ## Build with PostgreSQL backend
+	$(MAKE) build LUNET_DB=postgres
+
+build-mysql: ## Build with MySQL backend
+	$(MAKE) build LUNET_DB=mysql
 
 deps: ## Install LuaRocks dependencies
 	@command -v luarocks >/dev/null 2>&1 || { echo >&2 "Error: luarocks not found. Please install it."; exit 1; }

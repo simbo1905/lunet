@@ -9,6 +9,13 @@ db.close = native.close
 db.query_raw = native.query
 db.exec_raw = native.exec
 
+function db.set_config(cfg)
+    if not cfg then return end
+    for k, v in pairs(cfg) do
+        config[k] = v
+    end
+end
+
 -- Connection management
 function db.connect()
     -- Native open takes a table. db_config matches what's needed.

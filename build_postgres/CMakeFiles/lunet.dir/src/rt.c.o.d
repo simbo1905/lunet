@@ -1,6 +1,6 @@
 CMakeFiles/lunet.dir/src/rt.c.o: /Users/Shared/lunet/src/rt.c \
   /Users/Shared/lunet/include/rt.h \
-  /opt/homebrew/include/luajit-2.1/lua.h \
+  /opt/homebrew/opt/luajit/include/luajit-2.1/lua.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/stdarg.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg_header_macro.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stdarg___gnuc_va_list.h \
@@ -16,4 +16,4 @@ CMakeFiles/lunet.dir/src/rt.c.o: /Users/Shared/lunet/src/rt.c \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_wchar_t.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_null.h \
   /Library/Developer/CommandLineTools/usr/lib/clang/17/include/__stddef_offsetof.h \
-  /opt/homebrew/include/luajit-2.1/luaconf.h
+  /opt/homebrew/opt/luajit/include/luajit-2.1/luaconf.h

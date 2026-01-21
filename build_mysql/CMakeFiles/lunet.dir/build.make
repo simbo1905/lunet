@@ -72,10 +72,24 @@ include CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/codegen:
 .PHONY : CMakeFiles/lunet.dir/codegen
 
+CMakeFiles/lunet.dir/src/main.c.o: CMakeFiles/lunet.dir/flags.make
+CMakeFiles/lunet.dir/src/main.c.o: /Users/Shared/lunet/src/main.c
+CMakeFiles/lunet.dir/src/main.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building C object CMakeFiles/lunet.dir/src/main.c.o"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/main.c.o -MF CMakeFiles/lunet.dir/src/main.c.o.d -o CMakeFiles/lunet.dir/src/main.c.o -c /Users/Shared/lunet/src/main.c
+
+CMakeFiles/lunet.dir/src/main.c.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing C source to CMakeFiles/lunet.dir/src/main.c.i"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /Users/Shared/lunet/src/main.c > CMakeFiles/lunet.dir/src/main.c.i
+
+CMakeFiles/lunet.dir/src/main.c.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/lunet.dir/src/main.c.s"
+	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /Users/Shared/lunet/src/main.c -o CMakeFiles/lunet.dir/src/main.c.s
+
 CMakeFiles/lunet.dir/src/co.c.o: CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/src/co.c.o: /Users/Shared/lunet/src/co.c
 CMakeFiles/lunet.dir/src/co.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building C object CMakeFiles/lunet.dir/src/co.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building C object CMakeFiles/lunet.dir/src/co.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/co.c.o -MF CMakeFiles/lunet.dir/src/co.c.o.d -o CMakeFiles/lunet.dir/src/co.c.o -c /Users/Shared/lunet/src/co.c
 
 CMakeFiles/lunet.dir/src/co.c.i: cmake_force
@@ -89,7 +103,7 @@ CMakeFiles/lunet.dir/src/co.c.s: cmake_force
 CMakeFiles/lunet.dir/src/fs.c.o: CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/src/fs.c.o: /Users/Shared/lunet/src/fs.c
 CMakeFiles/lunet.dir/src/fs.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building C object CMakeFiles/lunet.dir/src/fs.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building C object CMakeFiles/lunet.dir/src/fs.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/fs.c.o -MF CMakeFiles/lunet.dir/src/fs.c.o.d -o CMakeFiles/lunet.dir/src/fs.c.o -c /Users/Shared/lunet/src/fs.c
 
 CMakeFiles/lunet.dir/src/fs.c.i: cmake_force
@@ -100,38 +114,10 @@ CMakeFiles/lunet.dir/src/fs.c.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/lunet.dir/src/fs.c.s"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /Users/Shared/lunet/src/fs.c -o CMakeFiles/lunet.dir/src/fs.c.s
 
-CMakeFiles/lunet.dir/src/main.c.o: CMakeFiles/lunet.dir/flags.make
-CMakeFiles/lunet.dir/src/main.c.o: /Users/Shared/lunet/src/main.c
-CMakeFiles/lunet.dir/src/main.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building C object CMakeFiles/lunet.dir/src/main.c.o"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/main.c.o -MF CMakeFiles/lunet.dir/src/main.c.o.d -o CMakeFiles/lunet.dir/src/main.c.o -c /Users/Shared/lunet/src/main.c
-
-CMakeFiles/lunet.dir/src/main.c.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing C source to CMakeFiles/lunet.dir/src/main.c.i"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /Users/Shared/lunet/src/main.c > CMakeFiles/lunet.dir/src/main.c.i
-
-CMakeFiles/lunet.dir/src/main.c.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/lunet.dir/src/main.c.s"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /Users/Shared/lunet/src/main.c -o CMakeFiles/lunet.dir/src/main.c.s
-
-CMakeFiles/lunet.dir/src/mysql.c.o: CMakeFiles/lunet.dir/flags.make
-CMakeFiles/lunet.dir/src/mysql.c.o: /Users/Shared/lunet/src/mysql.c
-CMakeFiles/lunet.dir/src/mysql.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building C object CMakeFiles/lunet.dir/src/mysql.c.o"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/mysql.c.o -MF CMakeFiles/lunet.dir/src/mysql.c.o.d -o CMakeFiles/lunet.dir/src/mysql.c.o -c /Users/Shared/lunet/src/mysql.c
-
-CMakeFiles/lunet.dir/src/mysql.c.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing C source to CMakeFiles/lunet.dir/src/mysql.c.i"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E /Users/Shared/lunet/src/mysql.c > CMakeFiles/lunet.dir/src/mysql.c.i
-
-CMakeFiles/lunet.dir/src/mysql.c.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/lunet.dir/src/mysql.c.s"
-	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S /Users/Shared/lunet/src/mysql.c -o CMakeFiles/lunet.dir/src/mysql.c.s
-
 CMakeFiles/lunet.dir/src/rt.c.o: CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/src/rt.c.o: /Users/Shared/lunet/src/rt.c
 CMakeFiles/lunet.dir/src/rt.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building C object CMakeFiles/lunet.dir/src/rt.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building C object CMakeFiles/lunet.dir/src/rt.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/rt.c.o -MF CMakeFiles/lunet.dir/src/rt.c.o.d -o CMakeFiles/lunet.dir/src/rt.c.o -c /Users/Shared/lunet/src/rt.c
 
 CMakeFiles/lunet.dir/src/rt.c.i: cmake_force
@@ -145,7 +131,7 @@ CMakeFiles/lunet.dir/src/rt.c.s: cmake_force
 CMakeFiles/lunet.dir/src/signal.c.o: CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/src/signal.c.o: /Users/Shared/lunet/src/signal.c
 CMakeFiles/lunet.dir/src/signal.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building C object CMakeFiles/lunet.dir/src/signal.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building C object CMakeFiles/lunet.dir/src/signal.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/signal.c.o -MF CMakeFiles/lunet.dir/src/signal.c.o.d -o CMakeFiles/lunet.dir/src/signal.c.o -c /Users/Shared/lunet/src/signal.c
 
 CMakeFiles/lunet.dir/src/signal.c.i: cmake_force
@@ -159,7 +145,7 @@ CMakeFiles/lunet.dir/src/signal.c.s: cmake_force
 CMakeFiles/lunet.dir/src/socket.c.o: CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/src/socket.c.o: /Users/Shared/lunet/src/socket.c
 CMakeFiles/lunet.dir/src/socket.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building C object CMakeFiles/lunet.dir/src/socket.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building C object CMakeFiles/lunet.dir/src/socket.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/socket.c.o -MF CMakeFiles/lunet.dir/src/socket.c.o.d -o CMakeFiles/lunet.dir/src/socket.c.o -c /Users/Shared/lunet/src/socket.c
 
 CMakeFiles/lunet.dir/src/socket.c.i: cmake_force
@@ -173,7 +159,7 @@ CMakeFiles/lunet.dir/src/socket.c.s: cmake_force
 CMakeFiles/lunet.dir/src/stl.c.o: CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/src/stl.c.o: /Users/Shared/lunet/src/stl.c
 CMakeFiles/lunet.dir/src/stl.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building C object CMakeFiles/lunet.dir/src/stl.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building C object CMakeFiles/lunet.dir/src/stl.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/stl.c.o -MF CMakeFiles/lunet.dir/src/stl.c.o.d -o CMakeFiles/lunet.dir/src/stl.c.o -c /Users/Shared/lunet/src/stl.c
 
 CMakeFiles/lunet.dir/src/stl.c.i: cmake_force
@@ -187,7 +173,7 @@ CMakeFiles/lunet.dir/src/stl.c.s: cmake_force
 CMakeFiles/lunet.dir/src/timer.c.o: CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/src/timer.c.o: /Users/Shared/lunet/src/timer.c
 CMakeFiles/lunet.dir/src/timer.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building C object CMakeFiles/lunet.dir/src/timer.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building C object CMakeFiles/lunet.dir/src/timer.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/src/timer.c.o -MF CMakeFiles/lunet.dir/src/timer.c.o.d -o CMakeFiles/lunet.dir/src/timer.c.o -c /Users/Shared/lunet/src/timer.c
 
 CMakeFiles/lunet.dir/src/timer.c.i: cmake_force
@@ -201,7 +187,7 @@ CMakeFiles/lunet.dir/src/timer.c.s: cmake_force
 CMakeFiles/lunet.dir/ext/mysql/mysql.c.o: CMakeFiles/lunet.dir/flags.make
 CMakeFiles/lunet.dir/ext/mysql/mysql.c.o: /Users/Shared/lunet/ext/mysql/mysql.c
 CMakeFiles/lunet.dir/ext/mysql/mysql.c.o: CMakeFiles/lunet.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building C object CMakeFiles/lunet.dir/ext/mysql/mysql.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building C object CMakeFiles/lunet.dir/ext/mysql/mysql.c.o"
 	/usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT CMakeFiles/lunet.dir/ext/mysql/mysql.c.o -MF CMakeFiles/lunet.dir/ext/mysql/mysql.c.o.d -o CMakeFiles/lunet.dir/ext/mysql/mysql.c.o -c /Users/Shared/lunet/ext/mysql/mysql.c
 
 CMakeFiles/lunet.dir/ext/mysql/mysql.c.i: cmake_force
@@ -214,10 +200,9 @@ CMakeFiles/lunet.dir/ext/mysql/mysql.c.s: cmake_force
 
 # Object files for target lunet
 lunet_OBJECTS = \
+"CMakeFiles/lunet.dir/src/main.c.o" \
 "CMakeFiles/lunet.dir/src/co.c.o" \
 "CMakeFiles/lunet.dir/src/fs.c.o" \
-"CMakeFiles/lunet.dir/src/main.c.o" \
-"CMakeFiles/lunet.dir/src/mysql.c.o" \
 "CMakeFiles/lunet.dir/src/rt.c.o" \
 "CMakeFiles/lunet.dir/src/signal.c.o" \
 "CMakeFiles/lunet.dir/src/socket.c.o" \
@@ -228,10 +213,9 @@ lunet_OBJECTS = \
 # External object files for target lunet
 lunet_EXTERNAL_OBJECTS =
 
+lunet: CMakeFiles/lunet.dir/src/main.c.o
 lunet: CMakeFiles/lunet.dir/src/co.c.o
 lunet: CMakeFiles/lunet.dir/src/fs.c.o
-lunet: CMakeFiles/lunet.dir/src/main.c.o
-lunet: CMakeFiles/lunet.dir/src/mysql.c.o
 lunet: CMakeFiles/lunet.dir/src/rt.c.o
 lunet: CMakeFiles/lunet.dir/src/signal.c.o
 lunet: CMakeFiles/lunet.dir/src/socket.c.o
@@ -239,11 +223,12 @@ lunet: CMakeFiles/lunet.dir/src/stl.c.o
 lunet: CMakeFiles/lunet.dir/src/timer.c.o
 lunet: CMakeFiles/lunet.dir/ext/mysql/mysql.c.o
 lunet: CMakeFiles/lunet.dir/build.make
-lunet: /opt/homebrew/lib/libluajit-5.1.dylib
-lunet: /opt/homebrew/lib/libuv.dylib
-lunet: /opt/homebrew/lib/libmysqlclient.dylib
+lunet: /opt/homebrew/opt/luajit/lib/libluajit-5.1.dylib
+lunet: /opt/homebrew/opt/libuv/lib/libuv.dylib
+lunet: /opt/homebrew/opt/libsodium/lib/libsodium.dylib
+lunet: /opt/homebrew/opt/mysql/lib/libmysqlclient.dylib
 lunet: CMakeFiles/lunet.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Linking C executable lunet"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/Users/Shared/lunet/build_mysql/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking C executable lunet"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/lunet.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

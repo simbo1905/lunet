@@ -12,7 +12,6 @@ set(CMAKE_DEPENDS_DEPENDENCY_FILES
   "/Users/Shared/lunet/src/co.c" "CMakeFiles/lunet.dir/src/co.c.o" "gcc" "CMakeFiles/lunet.dir/src/co.c.o.d"
   "/Users/Shared/lunet/src/fs.c" "CMakeFiles/lunet.dir/src/fs.c.o" "gcc" "CMakeFiles/lunet.dir/src/fs.c.o.d"
   "/Users/Shared/lunet/src/main.c" "CMakeFiles/lunet.dir/src/main.c.o" "gcc" "CMakeFiles/lunet.dir/src/main.c.o.d"
-  "/Users/Shared/lunet/src/mysql.c" "CMakeFiles/lunet.dir/src/mysql.c.o" "gcc" "CMakeFiles/lunet.dir/src/mysql.c.o.d"
   "/Users/Shared/lunet/src/rt.c" "CMakeFiles/lunet.dir/src/rt.c.o" "gcc" "CMakeFiles/lunet.dir/src/rt.c.o.d"
   "/Users/Shared/lunet/src/signal.c" "CMakeFiles/lunet.dir/src/signal.c.o" "gcc" "CMakeFiles/lunet.dir/src/signal.c.o.d"
   "/Users/Shared/lunet/src/socket.c" "CMakeFiles/lunet.dir/src/socket.c.o" "gcc" "CMakeFiles/lunet.dir/src/socket.c.o.d"

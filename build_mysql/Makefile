@@ -225,30 +225,6 @@ src/main.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/lunet.dir/build.make CMakeFiles/lunet.dir/src/main.c.s
 .PHONY : src/main.c.s
 
-src/mysql.o: src/mysql.c.o
-.PHONY : src/mysql.o
-
-# target to build an object file
-src/mysql.c.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/lunet.dir/build.make CMakeFiles/lunet.dir/src/mysql.c.o
-.PHONY : src/mysql.c.o
-
-src/mysql.i: src/mysql.c.i
-.PHONY : src/mysql.i
-
-# target to preprocess a source file
-src/mysql.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/lunet.dir/build.make CMakeFiles/lunet.dir/src/mysql.c.i
-.PHONY : src/mysql.c.i
-
-src/mysql.s: src/mysql.c.s
-.PHONY : src/mysql.s
-
-# target to generate assembly for a file
-src/mysql.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/lunet.dir/build.make CMakeFiles/lunet.dir/src/mysql.c.s
-.PHONY : src/mysql.c.s
-
 src/rt.o: src/rt.c.o
 .PHONY : src/rt.o
 
@@ -390,9 +366,6 @@ help:
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
-	@echo "... src/mysql.o"
-	@echo "... src/mysql.i"
-	@echo "... src/mysql.s"
 	@echo "... src/rt.o"
 	@echo "... src/rt.i"
 	@echo "... src/rt.s"
