@@ -42,10 +42,10 @@ jobs:
           mkdir -p www
           TS=$(date +%s)
           echo "<h1>Hello from lunet $TS</h1>" > www/test.html
-          build/lunet app/main.lua &
+          build/lunet examples/smoke_http.lua &
           sleep 2
           curl -sf http://127.0.0.1:8080/test.html | grep -q "$TS"
-          pkill -f "lunet app/main.lua"
+          pkill -f "smoke_http.lua"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
