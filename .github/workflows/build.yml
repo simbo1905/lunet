@@ -45,7 +45,8 @@ jobs:
     - name: Setup vcpkg (Windows)
       if: runner.os == 'Windows'
       uses: lukka/run-vcpkg@v11
-      # Using default options to get latest vcpkg
+      with:
+        vcpkgGitCommitId: 'f9d8eecab99cb23e4befb7ea90b2f9504d311b54'
 
     - name: Install Dependencies (Windows)
       if: runner.os == 'Windows'
