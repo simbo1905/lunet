@@ -188,6 +188,12 @@ cmake .. \
 
 ### Ubuntu/Debian
 
+**Tested on Debian Trixie (13) with:**
+- GCC 14.2.0
+- CMake 3.31.6
+- LuaJIT 2.1.0+openresty20250117-2
+- libuv 1.50.0-2
+
 ```bash
 # Install dependencies (all backends)
 sudo apt update
@@ -201,7 +207,12 @@ cmake --build build
 # Or build with MySQL
 cmake -B build-mysql -DLUNET_ENABLE_MYSQL=ON
 cmake --build build-mysql
+
+# Run tests
+make test
 ```
+
+**Note**: All dependencies listed above are required for compilation. PostgreSQL client libraries (`libpq-dev`) are needed for the build system but PostgreSQL database support is not yet implemented at the application layer.
 
 ### CentOS/RHEL
 
