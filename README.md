@@ -20,6 +20,7 @@ Docs: [README_realworld.md](README_realworld.md) | [README_realworld-CN.md](READ
 - **Database Choice**: The database driver is selected at build time via CMake.
   - Default: **SQLite3** (no external service required)
   - Optional: **MySQL/MariaDB** (requires `conduit` database setup)
+  - Note: PostgreSQL client libraries are required for build but PostgreSQL backend is not yet implemented in the application layer
 
 ### Build Configuration
 
@@ -34,6 +35,8 @@ cmake --build build
 cmake -B build -DLUNET_ENABLE_MYSQL=ON
 cmake --build build
 ```
+
+**Note**: PostgreSQL is a required build dependency but the application currently only supports SQLite3 and MySQL as database backends. PostgreSQL support at the application layer is planned for future releases.
 
 ### Demo API Quick Start
 
@@ -186,14 +189,18 @@ cmake .. \
 ### Ubuntu/Debian
 
 ```bash
-# Install dependencies
+# Install dependencies (all backends)
 sudo apt update
-sudo apt install build-essential cmake libluajit-5.1-dev libuv1-dev libmysqlclient-dev
+sudo apt install build-essential cmake libluajit-5.1-dev libuv1-dev \
+  libsodium-dev libsqlite3-dev libpq-dev libmysqlclient-dev
 
-# Build
-mkdir build && cd build
-cmake ..
-make
+# Build with SQLite (default)
+cmake -B build
+cmake --build build
+
+# Or build with MySQL
+cmake -B build-mysql -DLUNET_ENABLE_MYSQL=ON
+cmake --build build-mysql
 ```
 
 ### CentOS/RHEL
