@@ -5,6 +5,7 @@ A high-performance coroutine-based networking library for LuaJIT, built on top o
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Language](https://img.shields.io/badge/Language-C%2BLuaJIT-green.svg)]()
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey.svg)]()
+[![Build](https://github.com/simbo1905/lunet/actions/workflows/build.yml/badge.svg)](https://github.com/simbo1905/lunet/actions/workflows/build.yml)
 
 [中文文档](README-CN.md)
 
@@ -14,22 +15,70 @@ This fork includes an implementation of the [RealWorld "Conduit"](https://github
 
 ### Demo Prerequisites
 
-- CMake 3.10+, LuaJIT 2.1+, libuv 1.x (see Installation section below)
-- MariaDB/MySQL with a `conduit` database
+- CMake 3.12+, LuaJIT 2.1+, libuv 1.x (see Installation section below)
+- **SQLite3** (default, no setup required) or **MySQL/MariaDB** (optional)
+
+### Database Configuration (Build-Time Decision)
+
+The Conduit demo app supports two database backends. **The database driver is selected at CMake configure time**, not at runtime.
+
+#### SQLite (Default)
+
+SQLite is the default database - no external database server required. The database file is created automatically at `.tmp/conduit.sqlite3`.
+
+```bash
+# Build with SQLite (default)
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
+#### MySQL/MariaDB
+
+To use MySQL/MariaDB instead:
+
+```bash
+# Build with MySQL
+cmake -B build \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DLUNET_DB_DRIVER=mysql \
+  -DLUNET_MYSQL_HOST=127.0.0.1 \
+  -DLUNET_MYSQL_PORT=3306 \
+  -DLUNET_MYSQL_USER=root \
+  -DLUNET_MYSQL_PASSWORD=yourpassword \
+  -DLUNET_MYSQL_DATABASE=conduit \
+  -DLUNET_ENABLE_MYSQL=ON
+cmake --build build
+
+# Initialize the MySQL database
+mysql -u root -p < app/schema.sql
+```
+
+#### CMake Database Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `LUNET_DB_DRIVER` | `sqlite` | Database driver: `sqlite` or `mysql` |
+| `LUNET_SQLITE_PATH` | `.tmp/conduit.sqlite3` | SQLite database file path |
+| `LUNET_MYSQL_HOST` | `127.0.0.1` | MySQL server host |
+| `LUNET_MYSQL_PORT` | `3306` | MySQL server port |
+| `LUNET_MYSQL_USER` | `root` | MySQL username |
+| `LUNET_MYSQL_PASSWORD` | `root` | MySQL password |
+| `LUNET_MYSQL_DATABASE` | `conduit` | MySQL database name |
+| `LUNET_ENABLE_MYSQL` | `OFF` | Enable MySQL C library (auto-enabled if `LUNET_DB_DRIVER=mysql`) |
+
+The CMake configuration generates `app/db_config.lua` with the selected database settings.
 
 ### Demo API Quick Start
 
 ```bash
-# Build lunet (compiles C core with CMake)
-make build
-
-# Initialize database
-mariadb -u root < app/schema.sql
+# Build lunet with SQLite (default)
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 
 # Start the API backend (listens on port 8080)
-make run
+./build/lunet app/main.lua
 
-# Verify API is running
+# In another terminal, verify API is running
 curl http://127.0.0.1:8080/api/tags
 
 # (Optional) Start a React/Vite frontend - clones to .tmp/conduit-vite
@@ -43,7 +92,7 @@ make stop
 
 | Target | Description |
 |--------|-------------|
-| `make build` | Compile lunet C core using CMake |
+| `make build` | Compile lunet C core using CMake (SQLite default) |
 | `make run` | Start the API backend on port 8080 |
 | `make wui` | Clone and start React/Vite frontend (requires bun or npm) |
 | `make stop` | Stop API backend and frontend |
@@ -52,6 +101,62 @@ make stop
 | `make help` | Show all available targets |
 
 This contribution builds upon the upstream [xialeistudio/lunet](https://github.com/xialeistudio/lunet) project.
+
+---
+
+## Cross-Platform Build
+
+The project builds on Linux, macOS, and Windows. A GitHub Actions workflow runs on all three platforms.
+
+### Debian/Linux
+
+```bash
+# Install dependencies
+sudo apt install build-essential cmake luajit libluajit-5.1-dev libuv1-dev
+
+# Build with SQLite (default)
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+./build/lunet app/main.lua
+```
+
+### macOS (Homebrew)
+
+```bash
+# Install dependencies
+brew install luajit libuv
+
+# Build with SQLite (default)
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+./build/lunet app/main.lua
+```
+
+### Windows 11 (vcpkg)
+
+```powershell
+# Install vcpkg dependencies
+vcpkg install luajit:x64-windows libuv:x64-windows
+
+# Build with SQLite (default)
+cmake -B build -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+
+# Run
+.\build\Release\lunet.exe app/main.lua
+```
+
+### Windows PowerShell Scripts
+
+The `windows/` folder contains helper scripts for Windows development:
+
+```powershell
+# Start server (waits for port 8080 to be ready)
+.\windows\run.ps1
+
+# Stop all lunet processes
+.\windows\stop.ps1
+```
 
 ---
 
@@ -111,19 +216,18 @@ Lunet is a coroutine-based networking library that provides synchronous APIs wit
 
 ### Prerequisites
 
-- CMake 3.10+
+- CMake 3.12+
 - LuaJIT 2.1+
 - libuv 1.x
-- MySQL client library (for MySQL module)
+- MySQL client library (optional, for MySQL module)
 
 ### Build from Source
 
 ```bash
-git clone https://github.com/xialeistudio/lunet.git
+git clone https://github.com/simbo1905/lunet.git
 cd lunet
-mkdir build && cd build
-cmake ..
-make
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 ```
 
 ### Build with Custom Library Paths
@@ -131,34 +235,29 @@ make
 If you have libraries installed in non-standard locations, you can specify the paths explicitly:
 
 ```bash
-cmake .. \
+cmake -B build \
   -DLUAJIT_INCLUDE_DIR=/path/to/luajit/include \
   -DLUAJIT_LIBRARY=/path/to/luajit/lib/libluajit-5.1.dylib \
   -DLIBUV_INCLUDE_DIR=/path/to/libuv/include \
-  -DLIBUV_LIBRARY=/path/to/libuv/lib/libuv.dylib \
-  -DMYSQL_INCLUDE_DIR=/path/to/mysql/include \
-  -DMYSQL_LIBRARY=/path/to/mysql/lib/libmysqlclient.dylib
+  -DLIBUV_LIBRARY=/path/to/libuv/lib/libuv.dylib
 ```
 
 ### macOS with Homebrew
 
 ```bash
 # Install dependencies
-brew install luajit libuv mysql
+brew install luajit libuv
 
 # Build with automatic detection
-mkdir build && cd build
-cmake ..
-make
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 
 # Or specify Homebrew paths explicitly
-cmake .. \
+cmake -B build \
   -DLUAJIT_INCLUDE_DIR=/opt/homebrew/include/luajit-2.1 \
   -DLUAJIT_LIBRARY=/opt/homebrew/lib/libluajit-5.1.dylib \
   -DLIBUV_INCLUDE_DIR=/opt/homebrew/include \
-  -DLIBUV_LIBRARY=/opt/homebrew/lib/libuv.dylib \
-  -DMYSQL_INCLUDE_DIR=/opt/homebrew/Cellar/mysql@8.4/8.4.4/include \
-  -DMYSQL_LIBRARY=/opt/homebrew/Cellar/mysql@8.4/8.4.4/lib/libmysqlclient.dylib
+  -DLIBUV_LIBRARY=/opt/homebrew/lib/libuv.dylib
 ```
 
 ### Ubuntu/Debian
@@ -166,24 +265,22 @@ cmake .. \
 ```bash
 # Install dependencies
 sudo apt update
-sudo apt install build-essential cmake libluajit-5.1-dev libuv1-dev libmysqlclient-dev
+sudo apt install build-essential cmake libluajit-5.1-dev libuv1-dev
 
 # Build
-mkdir build && cd build
-cmake ..
-make
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 ```
 
 ### CentOS/RHEL
 
 ```bash
 # Install dependencies
-sudo yum install gcc gcc-c++ cmake luajit-devel libuv-devel mysql-devel
+sudo yum install gcc gcc-c++ cmake luajit-devel libuv-devel
 
 # Build
-mkdir build && cd build
-cmake ..
-make
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 ```
 
 ## Quick Start
@@ -300,7 +397,7 @@ end)
 Run your Lua script with lunet:
 
 ```bash
-./lunet script.lua
+./build/lunet script.lua
 ```
 
 ## Type Definitions
