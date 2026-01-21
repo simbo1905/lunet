@@ -42,7 +42,7 @@ jobs:
     - name: Install Dependencies (Windows)
       if: runner.os == 'Windows'
       run: |
-        vcpkg install libuv:x64-windows libsodium:x64-windows sqlite3:x64-windows postgresql:x64-windows luajit:x64-windows
+        vcpkg install libuv:x64-windows libsodium:x64-windows sqlite3:x64-windows libpq:x64-windows luajit:x64-windows
 
     - name: Configure CMake (Windows)
       if: runner.os == 'Windows'
