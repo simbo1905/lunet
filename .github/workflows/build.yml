@@ -1,0 +1,54 @@
+name: Build
+
+# PR and smoke test workflow - runs concurrently (no concurrency limits)
+# Each PR gets its own run, manual triggers don't cancel each other
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch or tag to build'
+        required: false
+        default: ''
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libluajit-5.1-dev libuv1-dev libsqlite3-dev libsodium-dev
+
+      - name: Build
+        run: make build
+
+      - name: Install test dependencies
+        run: |
+          sudo apt-get install -y luarocks
+          sudo luarocks install busted
+
+      - name: Unit tests
+        run: busted spec/
+
+      - name: Smoke test HTTP server
+        run: |
+          mkdir -p www
+          TS=$(date +%s)
+          echo "<h1>Hello from lunet $TS</h1>" > www/test.html
+          build/lunet examples/smoke_http.lua &
+          sleep 2
+          curl -sf http://127.0.0.1:8080/test.html | grep -q "$TS"
+          pkill -f "smoke_http.lua"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lunet-linux-amd64
+          path: build/lunet
