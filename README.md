@@ -8,30 +8,52 @@ A high-performance coroutine-based networking library for LuaJIT, built on top o
 
 [中文文档](README-CN.md)
 
-## RealWorld Conduit API
+## RealWorld Conduit API Demo
 
 This fork includes an implementation of the [RealWorld "Conduit"](https://github.com/gothinkster/realworld) API spec - a Medium.com clone demonstrating Lunet's capabilities as a web backend framework. The implementation covers users, profiles, articles, comments, tags, favorites, and follows endpoints. The app is located in the `app/` directory.
 
-### Prerequisites
+Docs: [README_realworld.md](README_realworld.md) | [README_realworld-CN.md](README_realworld-CN.md)
 
-- CMake 3.10+, LuaJIT 2.1+, libuv 1.x (see Installation section below)
-- MariaDB/MySQL with a `conduit` database
+### Demo Prerequisites
 
-### Quick Start
+- CMake 3.12+, LuaJIT 2.1+, libuv 1.x, libsodium, SQLite3, PostgreSQL (client libs)
+- **Database Choice**: The database driver is selected at build time via CMake.
+  - Default: **SQLite3** (no external service required)
+  - Optional: **MySQL/MariaDB** (requires `conduit` database setup)
+
+### Build Configuration
+
+**Default (SQLite3):**
+```bash
+cmake -B build
+cmake --build build
+```
+
+**Enable MySQL:**
+```bash
+cmake -B build -DLUNET_ENABLE_MYSQL=ON
+cmake --build build
+```
+
+### Demo API Quick Start
 
 ```bash
 # Build lunet (compiles C core with CMake)
-make build
+cmake -B build
+cmake --build build
 
-# Initialize database
-mariadb -u root < app/schema.sql
+# Initialize database (SQLite)
+# The app will automatically initialize the SQLite database at .tmp/conduit.sqlite3 on first run.
 
 # Start the API backend (listens on port 8080)
-make run
+# Linux/macOS:
+./build/lunet app/main.lua
+# Windows:
+.\build\Release\lunet.exe app\main.lua
 
 # Verify API is running
-curl http://127.0.0.1:8080/api/tags
-
+bin/test_curl.sh http://127.0.0.1:8080/api/tags
+```
 # (Optional) Start a React/Vite frontend - clones to .tmp/conduit-vite
 make wui
 
@@ -39,7 +61,7 @@ make wui
 make stop
 ```
 
-### Available Make Targets
+### Demo Make Targets
 
 | Target | Description |
 |--------|-------------|
@@ -55,7 +77,7 @@ This contribution builds upon the upstream [xialeistudio/lunet](https://github.c
 
 ---
 
-## Overview
+## Lunet Overview
 
 Lunet is a coroutine-based networking library that provides synchronous APIs with asynchronous execution. It combines the power of C, LuaJIT, and libuv to deliver high-performance I/O operations while maintaining clean, readable code.
 

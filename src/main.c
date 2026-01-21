@@ -52,7 +52,22 @@ int lunet_open_fs(lua_State *L) {
 }
 
 #ifdef LUNET_HAS_DB
-int lunet_open_db(lua_State *L);
+int lunet_db_open(lua_State* L);
+int lunet_db_close(lua_State* L);
+int lunet_db_query(lua_State* L);
+int lunet_db_exec(lua_State* L);
+int lunet_db_escape(lua_State* L);
+
+int lunet_open_db(lua_State *L) {
+  luaL_Reg funcs[] = {{"open", lunet_db_open},
+                      {"close", lunet_db_close},
+                      {"query", lunet_db_query},
+                      {"exec", lunet_db_exec},
+                      {"escape", lunet_db_escape},
+                      {NULL, NULL}};
+  luaL_newlib(L, funcs);
+  return 1;
+}
 #endif
 
 // register modules
@@ -116,28 +131,3 @@ int main(int argc, char **argv) {
   lua_close(L);
   return ret;
 }
-
-/* ============================================================================
- * OFFICIAL EXTENSIONS
- * Add optional extension modules below. Each extension should be guarded by
- * its own preprocessor conditional (e.g., LUNET_HAS_DB, LUNET_HAS_HTTP, etc.)
- * ============================================================================ */
-
-#ifdef LUNET_HAS_DB
-int lunet_db_open(lua_State* L);
-int lunet_db_close(lua_State* L);
-int lunet_db_query(lua_State* L);
-int lunet_db_exec(lua_State* L);
-int lunet_db_escape(lua_State* L);
-
-int lunet_open_db(lua_State *L) {
-  luaL_Reg funcs[] = {{"open", lunet_db_open},
-                      {"close", lunet_db_close},
-                      {"query", lunet_db_query},
-                      {"exec", lunet_db_exec},
-                      {"escape", lunet_db_escape},
-                      {NULL, NULL}};
-  luaL_newlib(L, funcs);
-  return 1;
-}
-#endif

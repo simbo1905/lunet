@@ -1,124 +1,170 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12)
 project(lunet C)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-include_directories(include)
+# Helper macro to find dependencies via Config, PkgConfig, or standard paths
+macro(find_dependency_flexible NAME PKG_NAME HEADER LIB_NAMES)
+    # 1. Try Config mode (vcpkg, etc.)
+    find_package(${NAME} CONFIG QUIET)
+    
+    if(${NAME}_FOUND)
+        message(STATUS "Found ${NAME} via Config")
+    else()
+        # 2. Try PkgConfig
+        find_package(PkgConfig QUIET)
+        if(PKG_CONFIG_FOUND)
+            pkg_check_modules(${NAME}_PKG ${PKG_NAME} QUIET)
+        endif()
+
+        if(${NAME}_PKG_FOUND)
+            message(STATUS "Found ${NAME} via PkgConfig")
+            set(${NAME}_INCLUDE_DIRS ${${NAME}_PKG_INCLUDE_DIRS})
+            set(${NAME}_LIBRARIES ${${NAME}_PKG_LIBRARIES})
+            set(${NAME}_FOUND TRUE)
+        else()
+            # 3. Try standard paths
+            find_path(${NAME}_INCLUDE_DIR ${HEADER}
+                HINTS ENV ${NAME}_DIR
+                PATH_SUFFIXES include
+            )
+            find_library(${NAME}_LIBRARY NAMES ${LIB_NAMES}
+                HINTS ENV ${NAME}_DIR
+                PATH_SUFFIXES lib
+            )
+            if(${NAME}_INCLUDE_DIR AND ${NAME}_LIBRARY)
+                message(STATUS "Found ${NAME} via standard paths: ${${NAME}_LIBRARY}")
+                set(${NAME}_INCLUDE_DIRS ${${NAME}_INCLUDE_DIR})
+                set(${NAME}_LIBRARIES ${${NAME}_LIBRARY})
+                set(${NAME}_FOUND TRUE)
+            endif()
+        endif()
+    endif()
+
+    if(NOT ${NAME}_FOUND)
+        message(FATAL_ERROR "${NAME} not found. Please install it.")
+    endif()
+endmacro()
+
+# === Dependencies ===
+
+# LuaJIT
+find_dependency_flexible(LUAJIT luajit luajit.h "luajit-5.1;luajit;lua51")
+
+# libuv
+find_package(libuv CONFIG QUIET)
+if(NOT libuv_FOUND)
+    find_dependency_flexible(LIBUV libuv uv.h "uv;libuv")
+endif()
+
+# libsodium
+find_package(unofficial-sodium CONFIG QUIET)
+if(NOT unofficial-sodium_FOUND)
+    find_dependency_flexible(SODIUM libsodium sodium.h "sodium;libsodium")
+endif()
 
 # === Database Backend Option ===
 set(LUNET_DB "mysql" CACHE STRING "Database backend: none, mysql, postgres, sqlite3")
 set_property(CACHE LUNET_DB PROPERTY STRINGS none mysql postgres sqlite3)
 message(STATUS "Database backend: ${LUNET_DB}")
 
-# === LuaJIT ===
-find_path(LUAJIT_INCLUDE_DIR luajit.h
-  HINTS ${LUAJIT_INCLUDE_DIR} ENV LUAJIT_INCLUDE_DIR /opt/homebrew/include /usr/local/include
-  PATH_SUFFIXES luajit-2.1
-)
-find_library(LUAJIT_LIBRARY NAMES luajit-5.1
-  HINTS ${LUAJIT_LIBRARY} ENV LUAJIT_LIBRARY /opt/homebrew/lib /usr/local/lib
-)
-
-if (NOT LUAJIT_INCLUDE_DIR OR NOT LUAJIT_LIBRARY)
-  message(FATAL_ERROR "LuaJIT not found. Set -DLUAJIT_INCLUDE_DIR and -DLUAJIT_LIBRARY manually.")
-endif()
-include_directories(${LUAJIT_INCLUDE_DIR})
-message(STATUS "Found LuaJIT: ${LUAJIT_LIBRARY}")
-
-# === libuv ===
-find_path(LIBUV_INCLUDE_DIR uv.h
-  HINTS ${LIBUV_INCLUDE_DIR} ENV LIBUV_INCLUDE_DIR /opt/homebrew/include /usr/local/include
-)
-find_library(LIBUV_LIBRARY NAMES uv
-  HINTS ${LIBUV_LIBRARY} ENV LIBUV_LIBRARY /opt/homebrew/lib /usr/local/lib
-)
-
-if (NOT LIBUV_INCLUDE_DIR OR NOT LIBUV_LIBRARY)
-  message(FATAL_ERROR "libuv not found. Set -DLIBUV_INCLUDE_DIR and -DLIBUV_LIBRARY manually.")
-endif()
-include_directories(${LIBUV_INCLUDE_DIR})
-message(STATUS "Found libuv: ${LIBUV_LIBRARY}")
-
 # === Source files ===
-file(GLOB CORE_SOURCES src/*.c)
-file(GLOB CORE_HEADERS include/*.h)
+set(SOURCES
+    src/main.c
+    src/co.c
+    src/fs.c
+    src/rt.c
+    src/signal.c
+    src/socket.c
+    src/stl.c
+    src/timer.c
+)
 
-set(SOURCES ${CORE_SOURCES})
-set(HEADERS ${CORE_HEADERS})
 set(DB_LIBRARY "")
 
 # === Database Backend Configuration ===
 if(LUNET_DB STREQUAL "mysql")
-  list(REMOVE_ITEM SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/mysql.c)
-  find_path(MYSQL_INCLUDE_DIR mysql.h
-    HINTS ${MYSQL_INCLUDE_DIR} ENV MYSQL_INCLUDE_DIR /opt/homebrew/include /usr/local/include
-    PATH_SUFFIXES mysql mysqlclient
-  )
-  find_library(MYSQL_LIBRARY NAMES mysqlclient
-    HINTS ${MYSQL_LIBRARY} ENV MYSQL_LIBRARY /opt/homebrew/lib /usr/local/lib
-  )
-  if (NOT MYSQL_INCLUDE_DIR OR NOT MYSQL_LIBRARY)
-    message(FATAL_ERROR "MySQL client not found. Set -DMYSQL_INCLUDE_DIR and -DMYSQL_LIBRARY manually.")
-  endif()
+  find_dependency_flexible(MYSQL mysql mysql.h "mysqlclient;mysql")
+  
   include_directories(ext/mysql)
-  include_directories(${MYSQL_INCLUDE_DIR})
-  message(STATUS "Found MySQL: ${MYSQL_LIBRARY}")
+  include_directories(${MYSQL_INCLUDE_DIRS})
+  message(STATUS "Found MySQL: ${MYSQL_LIBRARIES}")
   list(APPEND SOURCES ext/mysql/mysql.c)
-  list(APPEND HEADERS ext/mysql/mysql.h)
-  set(DB_LIBRARY ${MYSQL_LIBRARY})
+  # list(APPEND HEADERS ext/mysql/mysql.h)
+  set(DB_LIBRARY ${MYSQL_LIBRARIES})
   add_definitions(-DLUNET_HAS_DB)
+  set(LUNET_DB_DRIVER "mysql")
 
 elseif(LUNET_DB STREQUAL "postgres")
-  list(REMOVE_ITEM SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/mysql.c)
-  find_path(PQ_INCLUDE_DIR libpq-fe.h
-    HINTS ${PQ_INCLUDE_DIR} ENV PQ_INCLUDE_DIR /opt/homebrew/include /usr/local/include /opt/homebrew/opt/libpq/include
-    PATH_SUFFIXES postgresql
-  )
-  find_library(PQ_LIBRARY NAMES pq
-    HINTS ${PQ_LIBRARY} ENV PQ_LIBRARY /opt/homebrew/lib /usr/local/lib /opt/homebrew/opt/libpq/lib
-  )
-  if (NOT PQ_INCLUDE_DIR OR NOT PQ_LIBRARY)
-    message(FATAL_ERROR "PostgreSQL client (libpq) not found. Set -DPQ_INCLUDE_DIR and -DPQ_LIBRARY manually.")
-  endif()
-  include_directories(${PQ_INCLUDE_DIR})
+  find_dependency_flexible(PostgreSQL libpq libpq-fe.h "pq;libpq")
+  
+  include_directories(${PostgreSQL_INCLUDE_DIRS})
   include_directories(ext/postgres)
-  message(STATUS "Found PostgreSQL: ${PQ_LIBRARY}")
+  message(STATUS "Found PostgreSQL: ${PostgreSQL_LIBRARIES}")
   list(APPEND SOURCES ext/postgres/postgres.c)
-  list(APPEND HEADERS ext/postgres/postgres.h)
-  set(DB_LIBRARY ${PQ_LIBRARY})
+  # list(APPEND HEADERS ext/postgres/postgres.h)
+  set(DB_LIBRARY ${PostgreSQL_LIBRARIES})
   add_definitions(-DLUNET_HAS_DB)
+  set(LUNET_DB_DRIVER "postgres")
 
 elseif(LUNET_DB STREQUAL "sqlite3")
-  list(REMOVE_ITEM SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/mysql.c)
-  find_path(SQLITE3_INCLUDE_DIR sqlite3.h
-    HINTS ${SQLITE3_INCLUDE_DIR} ENV SQLITE3_INCLUDE_DIR /opt/homebrew/include /usr/local/include /opt/homebrew/opt/sqlite/include
-  )
-  find_library(SQLITE3_LIBRARY NAMES sqlite3
-    HINTS ${SQLITE3_LIBRARY} ENV SQLITE3_LIBRARY /opt/homebrew/lib /usr/local/lib /opt/homebrew/opt/sqlite/lib
-  )
-  if (NOT SQLITE3_INCLUDE_DIR OR NOT SQLITE3_LIBRARY)
-    message(FATAL_ERROR "SQLite3 not found. Set -DSQLITE3_INCLUDE_DIR and -DSQLITE3_LIBRARY manually.")
-  endif()
-  include_directories(${SQLITE3_INCLUDE_DIR})
+  find_dependency_flexible(SQLITE3 sqlite3 sqlite3.h "sqlite3")
+  
+  include_directories(${SQLITE3_INCLUDE_DIRS})
   include_directories(ext/sqlite3)
-  message(STATUS "Found SQLite3: ${SQLITE3_LIBRARY}")
+  message(STATUS "Found SQLite3: ${SQLITE3_LIBRARIES}")
   list(APPEND SOURCES ext/sqlite3/sqlite3.c)
-  list(APPEND HEADERS ext/sqlite3/sqlite3.h)
-  set(DB_LIBRARY ${SQLITE3_LIBRARY})
+  # list(APPEND HEADERS ext/sqlite3/sqlite3.h)
+  set(DB_LIBRARY ${SQLITE3_LIBRARIES})
   add_definitions(-DLUNET_HAS_DB)
+  set(LUNET_DB_DRIVER "sqlite")
 
 elseif(LUNET_DB STREQUAL "none")
   message(STATUS "Building without database support")
+  set(LUNET_DB_DRIVER "none")
 
 else()
   message(FATAL_ERROR "Invalid LUNET_DB value: ${LUNET_DB}. Must be one of: none, mysql, postgres, sqlite3")
 endif()
 
-add_executable(lunet ${SOURCES} ${HEADERS})
+# Generate app/db_config.lua from app/db_config.lua.in
+configure_file(app/db_config.lua.in ${CMAKE_SOURCE_DIR}/app/db_config.lua @ONLY)
 
-target_link_libraries(lunet
-  ${LUAJIT_LIBRARY}
-  ${LIBUV_LIBRARY}
+# === Targets ===
+include_directories(include)
+include_directories(${LUAJIT_INCLUDE_DIRS})
+include_directories(${LIBUV_INCLUDE_DIRS})
+include_directories(${SODIUM_INCLUDE_DIRS})
+
+add_executable(lunet ${SOURCES})
+
+target_link_libraries(lunet PRIVATE
+  ${LUAJIT_LIBRARIES}
+  ${LIBUV_LIBRARIES}
+  ${SODIUM_LIBRARIES}
   ${DB_LIBRARY}
 )
+
+if(WIN32)
+    target_link_libraries(lunet PRIVATE ws2_32 iphlpapi userenv psapi)
+endif()
+
+# === Installation / Post-build ===
+if(WIN32)
+    # Only copy if targets exist (vcpkg mode)
+    if(TARGET unofficial-sodium::sodium)
+        add_custom_command(TARGET lunet POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:unofficial-sodium::sodium>
+            $<TARGET_FILE_DIR:lunet>
+        )
+    endif()
+    if(TARGET sqlite3::sqlite3 AND LUNET_DB STREQUAL "sqlite3")
+        add_custom_command(TARGET lunet POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:sqlite3::sqlite3>
+            $<TARGET_FILE_DIR:lunet>
+        )
+    endif()
+endif()
