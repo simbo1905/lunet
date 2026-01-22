@@ -87,6 +87,10 @@ static param_t* collect_params(lua_State* L, int start, int* nparams) {
         return NULL;
     }
     param_t* params = malloc(sizeof(param_t) * (*nparams));
+    if (!params) {
+        *nparams = -1;
+        return NULL;
+    }
     for (int i = 0; i < *nparams; i++) {
         int idx = start + i;
         int type = lua_type(L, idx);
@@ -115,7 +119,13 @@ static param_t* collect_params(lua_State* L, int start, int* nparams) {
                 const char* s = lua_tolstring(L, idx, &len);
                 params[i].type = PARAM_TYPE_TEXT;
                 params[i].value.s.data = malloc(len + 1);
-                memcpy(params[i].value.s.data, s, len + 1);
+                if (!params[i].value.s.data) {
+                    free_params(params, i);
+                    *nparams = -1;
+                    return NULL;
+                }
+                memcpy(params[i].value.s.data, s, len);
+                params[i].value.s.data[len] = '\0';
                 params[i].value.s.len = len;
                 break;
             }
@@ -125,6 +135,11 @@ static param_t* collect_params(lua_State* L, int start, int* nparams) {
                     size_t len = strlen(s);
                     params[i].type = PARAM_TYPE_TEXT;
                     params[i].value.s.data = strdup(s);
+                    if (!params[i].value.s.data) {
+                        free_params(params, i);
+                        *nparams = -1;
+                        return NULL;
+                    }
                     params[i].value.s.len = len;
                 } else {
                     params[i].type = PARAM_TYPE_NIL;
@@ -138,6 +153,10 @@ static param_t* collect_params(lua_State* L, int start, int* nparams) {
 
 static int bind_params(sqlite3_stmt* stmt, param_t* params, int nparams, char* err, size_t errsize) {
     int expected = sqlite3_bind_parameter_count(stmt);
+    if (nparams > 0 && !params) {
+        snprintf(err, errsize, "parameter collection failed");
+        return SQLITE_ERROR;
+    }
     if (nparams != expected) {
         snprintf(err, errsize, "parameter count mismatch: got %d, expected %d", nparams, expected);
         return SQLITE_ERROR;
@@ -754,8 +773,15 @@ int lunet_db_query_params(lua_State* L) {
     lua_pushstring(L, "out of memory");
     return 2;
   }
-  
+
   ctx->params = collect_params(L, 3, &ctx->nparams);
+  if (ctx->nparams < 0) {
+    free(ctx->query);
+    free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, "out of memory");
+    return 2;
+  }
 
   lua_pushthread(L);
   ctx->co_ref = luaL_ref(L, LUA_REGISTRYINDEX);
@@ -816,8 +842,15 @@ int lunet_db_exec_params(lua_State* L) {
     lua_pushstring(L, "out of memory");
     return 2;
   }
-  
+
   ctx->params = collect_params(L, 3, &ctx->nparams);
+  if (ctx->nparams < 0) {
+    free(ctx->query);
+    free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, "out of memory");
+    return 2;
+  }
 
   lua_pushthread(L);
   ctx->co_ref = luaL_ref(L, LUA_REGISTRYINDEX);

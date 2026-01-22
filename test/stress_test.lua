@@ -17,7 +17,6 @@
 ]]
 
 local lunet = require('lunet')
-local socket = require('lunet.socket')
 local fs = require('lunet.fs')
 
 -- Configuration (from environment or defaults)
@@ -97,7 +96,7 @@ local function watchdog()
 end
 
 -- Main
-print(string.format("[STRESS] Starting stress test: %d workers x %d ops = %d total",
+io.stderr:write(string.format("[STRESS] Starting stress test: %d workers x %d ops = %d total\n",
     NUM_WORKERS, OPS_PER_WORKER, NUM_WORKERS * OPS_PER_WORKER))
 
 -- Start watchdog

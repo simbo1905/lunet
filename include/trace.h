@@ -82,9 +82,17 @@ void lunet_trace_stack_check(lua_State *L, int expected_base, int expected_delta
 /*
  * Stack depth checking - use at function entry/exit
  */
-#define LUNET_STACK_ENTER(L) int _lunet_stack_base = lua_gettop(L)
-#define LUNET_STACK_EXIT(L, delta) \
-    lunet_trace_stack_check(L, _lunet_stack_base, delta, __FILE__, __LINE__)
+/*
+ * NOTE: prefer explicit stack checkpoints to avoid macro scoping pitfalls.
+ *
+ * Usage:
+ *   int base = LUNET_STACK_BASE(L);
+ *   ... do work ...
+ *   LUNET_STACK_CHECK(L, base, 0);
+ */
+#define LUNET_STACK_BASE(L) lua_gettop(L)
+#define LUNET_STACK_CHECK(L, base, delta) \
+    lunet_trace_stack_check(L, (base), (delta), __FILE__, __LINE__)
 
 /*
  * lunet_ensure_coroutine - SAFE wrapper for _lunet_ensure_coroutine
@@ -188,8 +196,8 @@ static inline int lunet_ensure_coroutine(lua_State *L, const char *func_name) {
 /*
  * Stack checking - evaluates to nothing in release
  */
-#define LUNET_STACK_ENTER(L) ((void)0)
-#define LUNET_STACK_EXIT(L, delta) ((void)0)
+#define LUNET_STACK_BASE(L) (0)
+#define LUNET_STACK_CHECK(L, base, delta) ((void)0)
 
 #endif /* LUNET_TRACE */
 
