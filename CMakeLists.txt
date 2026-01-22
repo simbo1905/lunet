@@ -20,52 +20,77 @@ macro(find_dependency_flexible NAME PKG_NAME HEADER LIB_NAMES)
             # Handle imported targets from Config packages
             if(TARGET ${PKG_NAME}::${PKG_NAME})
                 set(${NAME}_LIBRARIES ${PKG_NAME}::${PKG_NAME})
+            elseif(TARGET libuv::uv_a)
+                set(${NAME}_LIBRARIES libuv::uv_a)
             elseif(TARGET libuv::uv)
-                # Special case for libuv
                 set(${NAME}_LIBRARIES libuv::uv)
+            elseif(TARGET unofficial-sodium::sodium)
+                set(${NAME}_LIBRARIES unofficial-sodium::sodium)
+            elseif(TARGET unofficial::sqlite3::sqlite3)
+                set(${NAME}_LIBRARIES unofficial::sqlite3::sqlite3)
             endif()
-            # Include dirs are handled by imported targets
             set(${NAME}_INCLUDE_DIRS "")
         else()
-        # 2. Try PkgConfig
-        find_package(PkgConfig QUIET)
-        if(PKG_CONFIG_FOUND)
-            pkg_check_modules(${NAME}_PKG ${PKG_NAME} QUIET)
-        endif()
+            # 2. Try vcpkg-specific unofficial packages
+            if("${NAME}" STREQUAL "SODIUM")
+                find_package(unofficial-sodium CONFIG QUIET)
+                if(unofficial-sodium_FOUND AND TARGET unofficial-sodium::sodium)
+                    message(STATUS "Found ${NAME} via unofficial-sodium Config")
+                    set(${NAME}_LIBRARIES unofficial-sodium::sodium)
+                    set(${NAME}_INCLUDE_DIRS "")
+                    set(${NAME}_FOUND TRUE)
+                endif()
+            elseif("${NAME}" STREQUAL "SQLITE3")
+                find_package(unofficial-sqlite3 CONFIG QUIET)
+                if(unofficial-sqlite3_FOUND AND TARGET unofficial::sqlite3::sqlite3)
+                    message(STATUS "Found ${NAME} via unofficial-sqlite3 Config")
+                    set(${NAME}_LIBRARIES unofficial::sqlite3::sqlite3)
+                    set(${NAME}_INCLUDE_DIRS "")
+                    set(${NAME}_FOUND TRUE)
+                endif()
+            endif()
+        
+            if(NOT ${NAME}_FOUND)
+                # 3. Try PkgConfig
+                find_package(PkgConfig QUIET)
+                if(PKG_CONFIG_FOUND)
+                    pkg_check_modules(${NAME}_PKG ${PKG_NAME} QUIET)
+                endif()
 
-        if(${NAME}_PKG_FOUND)
-            message(STATUS "Found ${NAME} via PkgConfig")
-            set(${NAME}_INCLUDE_DIRS ${${NAME}_PKG_INCLUDE_DIRS})
-            set(${NAME}_LIBRARIES ${${NAME}_PKG_LIBRARIES})
-            set(${NAME}_FOUND TRUE)
-        else()
-            # 3. Try standard paths including Homebrew
-            find_path(${NAME}_INCLUDE_DIR ${HEADER}
-                HINTS ENV ${NAME}_DIR
-                PATHS /opt/homebrew/include /opt/homebrew/opt/luajit/include/luajit-2.1
-                      /opt/homebrew/opt/libuv/include /opt/homebrew/opt/libsodium/include
-                      /opt/homebrew/opt/sqlite/include /opt/homebrew/opt/libpq/include
-                      /opt/homebrew/opt/mysql/include
-                      /usr/local/include /usr/include
-                PATH_SUFFIXES include luajit-2.1 mysql
-            )
-            find_library(${NAME}_LIBRARY NAMES ${LIB_NAMES}
-                HINTS ENV ${NAME}_DIR
-                PATHS /opt/homebrew/lib /opt/homebrew/opt/luajit/lib
-                      /opt/homebrew/opt/libuv/lib /opt/homebrew/opt/libsodium/lib
-                      /opt/homebrew/opt/sqlite/lib /opt/homebrew/opt/libpq/lib
-                      /opt/homebrew/opt/mysql/lib
-                      /usr/local/lib /usr/lib
-                PATH_SUFFIXES lib
-            )
-            if(${NAME}_INCLUDE_DIR AND ${NAME}_LIBRARY)
-                message(STATUS "Found ${NAME} via standard paths: ${${NAME}_LIBRARY}")
-                set(${NAME}_INCLUDE_DIRS ${${NAME}_INCLUDE_DIR})
-                set(${NAME}_LIBRARIES ${${NAME}_LIBRARY})
-                set(${NAME}_FOUND TRUE)
+                if(${NAME}_PKG_FOUND)
+                    message(STATUS "Found ${NAME} via PkgConfig")
+                    set(${NAME}_INCLUDE_DIRS ${${NAME}_PKG_INCLUDE_DIRS})
+                    set(${NAME}_LIBRARIES ${${NAME}_PKG_LIBRARIES})
+                    set(${NAME}_FOUND TRUE)
+                else()
+                    # 4. Try standard paths including Homebrew
+                    find_path(${NAME}_INCLUDE_DIR ${HEADER}
+                        HINTS ENV ${NAME}_DIR
+                        PATHS /opt/homebrew/include /opt/homebrew/opt/luajit/include/luajit-2.1
+                              /opt/homebrew/opt/libuv/include /opt/homebrew/opt/libsodium/include
+                              /opt/homebrew/opt/sqlite/include /opt/homebrew/opt/libpq/include
+                              /opt/homebrew/opt/mysql/include
+                              /usr/local/include /usr/include
+                        PATH_SUFFIXES include luajit-2.1 mysql
+                    )
+                    find_library(${NAME}_LIBRARY NAMES ${LIB_NAMES}
+                        HINTS ENV ${NAME}_DIR
+                        PATHS /opt/homebrew/lib /opt/homebrew/opt/luajit/lib
+                              /opt/homebrew/opt/libuv/lib /opt/homebrew/opt/libsodium/lib
+                              /opt/homebrew/opt/sqlite/lib /opt/homebrew/opt/libpq/lib
+                              /opt/homebrew/opt/mysql/lib
+                              /usr/local/lib /usr/lib
+                        PATH_SUFFIXES lib
+                    )
+                    if(${NAME}_INCLUDE_DIR AND ${NAME}_LIBRARY)
+                        message(STATUS "Found ${NAME} via standard paths: ${${NAME}_LIBRARY}")
+                        set(${NAME}_INCLUDE_DIRS ${${NAME}_INCLUDE_DIR})
+                        set(${NAME}_LIBRARIES ${${NAME}_LIBRARY})
+                        set(${NAME}_FOUND TRUE)
+                    endif()
+                endif()
             endif()
         endif()
-    endif()
     endif()
 
     if(NOT ${NAME}_FOUND)
@@ -180,10 +205,10 @@ if(WIN32)
             $<TARGET_FILE_DIR:lunet>
         )
     endif()
-    if(TARGET sqlite3::sqlite3 AND LUNET_DB STREQUAL "sqlite3")
+    if(TARGET unofficial::sqlite3::sqlite3 AND LUNET_DB STREQUAL "sqlite3")
         add_custom_command(TARGET lunet POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:sqlite3::sqlite3>
+            $<TARGET_FILE:unofficial::sqlite3::sqlite3>
             $<TARGET_FILE_DIR:lunet>
         )
     endif()
