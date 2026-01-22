@@ -54,18 +54,35 @@ macro(find_dependency_flexible NAME PKG_NAME HEADER LIB_NAMES)
                 # On Unix, it's libluajit-5.1.a or libluajit-5.1.so
                 find_library(LUAJIT_LIBRARY_FOUND NAMES lua51 luajit-5.1 luajit luajit-5.1.2
                     HINTS ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib
-                    PATHS ${CMAKE_PREFIX_PATH}/lib
+                    PATHS ${CMAKE_PREFIX_PATH}/lib /opt/homebrew/opt/luajit/lib /opt/homebrew/lib
                 )
                 find_path(LUAJIT_INCLUDE_FOUND NAMES lua.h
                     HINTS ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include/luajit
                           ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include
-                    PATHS ${CMAKE_PREFIX_PATH}/include
+                    PATHS ${CMAKE_PREFIX_PATH}/include /opt/homebrew/opt/luajit/include/luajit-2.1 /opt/homebrew/include
                     PATH_SUFFIXES luajit luajit-2.1
                 )
                 if(LUAJIT_LIBRARY_FOUND AND LUAJIT_INCLUDE_FOUND)
                     message(STATUS "Found ${NAME} via find_library: ${LUAJIT_LIBRARY_FOUND}")
                     set(${NAME}_LIBRARIES ${LUAJIT_LIBRARY_FOUND})
                     set(${NAME}_INCLUDE_DIRS ${LUAJIT_INCLUDE_FOUND})
+                    set(${NAME}_FOUND TRUE)
+                endif()
+            elseif("${NAME}" STREQUAL "SODIUM")
+                # Try find_library for libsodium (needed on macOS where pkg-config
+                # returns just library name without full path)
+                find_library(SODIUM_LIBRARY_FOUND NAMES sodium libsodium
+                    HINTS ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib
+                    PATHS ${CMAKE_PREFIX_PATH}/lib /opt/homebrew/opt/libsodium/lib /opt/homebrew/lib
+                )
+                find_path(SODIUM_INCLUDE_FOUND NAMES sodium.h
+                    HINTS ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include
+                    PATHS ${CMAKE_PREFIX_PATH}/include /opt/homebrew/opt/libsodium/include /opt/homebrew/include
+                )
+                if(SODIUM_LIBRARY_FOUND AND SODIUM_INCLUDE_FOUND)
+                    message(STATUS "Found ${NAME} via find_library: ${SODIUM_LIBRARY_FOUND}")
+                    set(${NAME}_LIBRARIES ${SODIUM_LIBRARY_FOUND})
+                    set(${NAME}_INCLUDE_DIRS ${SODIUM_INCLUDE_FOUND})
                     set(${NAME}_FOUND TRUE)
                 endif()
             endif()
@@ -80,7 +97,19 @@ macro(find_dependency_flexible NAME PKG_NAME HEADER LIB_NAMES)
                 if(${NAME}_PKG_FOUND)
                     message(STATUS "Found ${NAME} via PkgConfig")
                     set(${NAME}_INCLUDE_DIRS ${${NAME}_PKG_INCLUDE_DIRS})
-                    set(${NAME}_LIBRARIES ${${NAME}_PKG_LIBRARIES})
+                    # Use LINK_LIBRARIES which includes full paths, fallback to LDFLAGS if needed
+                    if(${NAME}_PKG_LINK_LIBRARIES)
+                        set(${NAME}_LIBRARIES ${${NAME}_PKG_LINK_LIBRARIES})
+                    else()
+                        # Fallback: combine library dirs and libraries
+                        set(${NAME}_LIBRARIES "")
+                        foreach(_dir ${${NAME}_PKG_LIBRARY_DIRS})
+                            list(APPEND ${NAME}_LIBRARIES "-L${_dir}")
+                        endforeach()
+                        foreach(_lib ${${NAME}_PKG_LIBRARIES})
+                            list(APPEND ${NAME}_LIBRARIES "-l${_lib}")
+                        endforeach()
+                    endif()
                     set(${NAME}_FOUND TRUE)
                 else()
                     # 4. Try standard paths including Homebrew
