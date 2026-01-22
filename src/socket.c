@@ -274,22 +274,22 @@ int lunet_socket_listen(lua_State *co) {
 
   struct sockaddr_in addr;
   if (uv_ip4_addr(host, port, &addr) < 0) {
-    queue_destroy(ctx->server.pending_accepts);
-    free(ctx);
+    uv_close((uv_handle_t *)&ctx->handle, lunet_close_cb);
+    // Note: lunet_close_cb will destroy queue and free ctx
     lua_pushnil(co);
     lua_pushstring(co, "invalid host or port");
     return 2;
   }
   if ((ret = uv_tcp_bind(&ctx->handle, (const struct sockaddr *)&addr, 0)) < 0) {
-    queue_destroy(ctx->server.pending_accepts);
-    free(ctx);
+    uv_close((uv_handle_t *)&ctx->handle, lunet_close_cb);
+    // Note: lunet_close_cb will destroy queue and free ctx
     lua_pushnil(co);
     lua_pushfstring(co, "failed to bind: %s", uv_strerror(ret));
     return 2;
   }
   if ((ret = uv_listen((uv_stream_t *)&ctx->handle, 128, lunet_listen_cb)) < 0) {
-    queue_destroy(ctx->server.pending_accepts);
-    free(ctx);
+    uv_close((uv_handle_t *)&ctx->handle, lunet_close_cb);
+    // Note: lunet_close_cb will destroy queue and free ctx
     lua_pushnil(co);
     lua_pushfstring(co, "failed to listen: %s", uv_strerror(ret));
     return 2;
@@ -593,7 +593,7 @@ int lunet_socket_connect(lua_State *L) {
   ret = uv_ip4_addr(host, port, &dest);
   if (ret < 0) {
     uv_close((uv_handle_t *)&ctx->handle, lunet_close_cb);
-    free(ctx);
+    // Note: lunet_close_cb will free ctx, don't double-free here
     lua_pushnil(L);
     lua_pushstring(L, "invalid host or port");
     return 2;
@@ -602,7 +602,7 @@ int lunet_socket_connect(lua_State *L) {
   connect_ctx_t *connect_ctx = malloc(sizeof(connect_ctx_t));
   if (!connect_ctx) {
     uv_close((uv_handle_t *)&ctx->handle, lunet_close_cb);
-    free(ctx);
+    // Note: lunet_close_cb will free ctx, don't double-free here
     lua_pushnil(L);
     lua_pushstring(L, "out of memory");
     return 2;
@@ -623,7 +623,7 @@ int lunet_socket_connect(lua_State *L) {
     connect_ctx->co_ref = LUA_NOREF;
     free(connect_ctx);
     uv_close((uv_handle_t *)&ctx->handle, lunet_close_cb);
-    free(ctx);
+    // Note: lunet_close_cb will free ctx, don't double-free here
     lua_pushnil(L);
     lua_pushfstring(L, "failed to start connect: %s", uv_strerror(ret));
     return 2;

@@ -29,6 +29,7 @@ int lunet_ensure_coroutine(lua_State *L, const char *func_name) {
     lua_pushfstring(L, "%s must be called from coroutine", func_name);
     return lua_error(L);
   }
+  lua_pop(L, 1);  // Pop the thread on success path too
   if (!lua_isyieldable(L)) {
     lua_pushfstring(L, "%s called in non-yieldable context", func_name);
     return lua_error(L);

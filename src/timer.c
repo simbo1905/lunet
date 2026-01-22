@@ -13,6 +13,11 @@ typedef struct {
   int co_ref;
 } sleep_ctx_t;
 
+static void lunet_sleep_close_cb(uv_handle_t *handle) {
+  sleep_ctx_t *ctx = (sleep_ctx_t *)handle->data;
+  free(ctx);
+}
+
 static void lunet_sleep_cb(uv_timer_t *timer) {
   sleep_ctx_t *ctx = (sleep_ctx_t *)timer->data;
   lua_State *L = ctx->L;
@@ -24,6 +29,8 @@ static void lunet_sleep_cb(uv_timer_t *timer) {
   if (lua_isthread(L, -1) == 0) {
     lua_pop(L, 1);  // pop invalid coroutine
     fprintf(stderr, "[lunet] Invalid coroutine reference in sleep_cb\n");
+    // Still need to close timer and free ctx
+    uv_close((uv_handle_t *)timer, lunet_sleep_close_cb);
     return;
   }
   // resume coroutine
@@ -38,6 +45,9 @@ static void lunet_sleep_cb(uv_timer_t *timer) {
     }
     lua_pop(co, 1);  // pop error message
   }
+
+  // Close timer handle and free context
+  uv_close((uv_handle_t *)timer, lunet_sleep_close_cb);
 }
 // sleep for ms milliseconds
 int lunet_sleep(lua_State *co) {

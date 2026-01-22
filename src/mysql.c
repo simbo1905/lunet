@@ -68,7 +68,14 @@ static void mysql_open_after_cb(uv_work_t* req, int status) {
     lua_pushnil(co);
     lua_pushstring(co, ctx->err);
   }
-  lua_resume(co, 2);
+  int rc = lua_resume(co, 2);
+  if (rc != LUA_OK && rc != LUA_YIELD) {
+    const char *err = lua_tostring(co, -1);
+    if (err) {
+      fprintf(stderr, "[lunet] lua_resume error in mysql.open: %s\n", err);
+    }
+    lua_pop(co, 1);
+  }
   free(ctx);
 }
 
@@ -241,13 +248,28 @@ static void mysql_query_after_cb(uv_work_t* req, int status) {
     ctx->result = NULL;
 
     lua_pushnil(co);
-    lua_resume(co, 2);
+    int rc = lua_resume(co, 2);
+    if (rc != LUA_OK && rc != LUA_YIELD) {
+      const char *err = lua_tostring(co, -1);
+      if (err) {
+        fprintf(stderr, "[lunet] lua_resume error in mysql.query: %s\n", err);
+      }
+      lua_pop(co, 1);
+    }
   } else {
     lua_pushnil(co);
     lua_pushstring(co, ctx->err);
-    lua_resume(co, 2);
+    int rc = lua_resume(co, 2);
+    if (rc != LUA_OK && rc != LUA_YIELD) {
+      const char *err = lua_tostring(co, -1);
+      if (err) {
+        fprintf(stderr, "[lunet] lua_resume error in mysql.query: %s\n", err);
+      }
+      lua_pop(co, 1);
+    }
   }
 
+  free((void*)ctx->query);
   free(ctx);
 }
 
@@ -353,7 +375,14 @@ static void mysql_exec_after_cb(uv_work_t* req, int status) {
   if (ctx->err[0] != '\0') {
     lua_pushnil(co);
     lua_pushstring(co, ctx->err);
-    lua_resume(co, 2);
+    int rc = lua_resume(co, 2);
+    if (rc != LUA_OK && rc != LUA_YIELD) {
+      const char *err = lua_tostring(co, -1);
+      if (err) {
+        fprintf(stderr, "[lunet] lua_resume error in mysql.exec: %s\n", err);
+      }
+      lua_pop(co, 1);
+    }
   } else {
     lua_newtable(co);
     lua_pushstring(co, "affected_rows");
@@ -363,7 +392,14 @@ static void mysql_exec_after_cb(uv_work_t* req, int status) {
     lua_pushinteger(co, ctx->insert_id);
     lua_settable(co, -3);
     lua_pushnil(co);
-    lua_resume(co, 2);
+    int rc = lua_resume(co, 2);
+    if (rc != LUA_OK && rc != LUA_YIELD) {
+      const char *err = lua_tostring(co, -1);
+      if (err) {
+        fprintf(stderr, "[lunet] lua_resume error in mysql.exec: %s\n", err);
+      }
+      lua_pop(co, 1);
+    }
   }
 
   free((void*)ctx->query);
