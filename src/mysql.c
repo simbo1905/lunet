@@ -1,4 +1,4 @@
-#include "mysql.h"
+#include "lunet_mysql.h"
 
 #include <stdlib.h>
 #include <string.h>

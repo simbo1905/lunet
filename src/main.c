@@ -8,7 +8,7 @@
 #include "fs.h"
 #include "lunet_signal.h"
 #ifdef LUNET_ENABLE_MYSQL
-#include "mysql.h"
+#include "lunet_mysql.h"
 #endif
 #include "rt.h"
 #include "socket.h"

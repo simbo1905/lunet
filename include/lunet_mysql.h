@@ -1,5 +1,5 @@
-#ifndef MYSQL_H
-#define MYSQL_H
+#ifndef LUNET_MYSQL_H
+#define LUNET_MYSQL_H
 
 #include <lua.h>
 
