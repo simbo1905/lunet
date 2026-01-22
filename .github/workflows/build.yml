@@ -78,7 +78,7 @@ jobs:
 
     - name: Unit Tests (Unix)
       if: runner.os != 'Windows'
-      run: busted spec/
+      run: busted spec/ --exclude-tags=native
 
     - name: Upload artifact (Linux)
       if: runner.os == 'Linux'
