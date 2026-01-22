@@ -7,6 +7,7 @@
 #include <uv.h>
 
 #include "co.h"
+#include "trace.h"
 
 typedef struct {
   uv_fs_t req;

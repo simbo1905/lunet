@@ -18,6 +18,7 @@
 
 #include "co.h"
 #include "stl.h"
+#include "trace.h"
 
 static size_t read_buffer_size = 4096;
 

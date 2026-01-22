@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "co.h"
+#include "trace.h"
 #include "uv.h"
 
 #define LUNET_MYSQL_CONN_MT "lunet.mysql.conn"
@@ -327,7 +328,9 @@ int lunet_db_query(lua_State* L) {
   if (lunet_ensure_coroutine(L, "db.query")) {
     return lua_error(L);
   }
-  if (lua_gettop(L) < 2) {
+  
+  int n = lua_gettop(L);
+  if (n < 2) {
     lua_pushnil(L);
     lua_pushstring(L, "db.query requires connection and sql string");
     return 2;
@@ -347,6 +350,15 @@ int lunet_db_query(lua_State* L) {
   }
 
   const char* query = luaL_checkstring(L, 2);
+  int param_count = n - 2; // Number of parameters
+  
+  // For now, if there are parameters, we'll use a placeholder
+  // TODO: Implement actual prepared statement support
+  if (param_count > 0) {
+    lua_pushnil(L);
+    lua_pushstring(L, "prepared statements not yet implemented");
+    return 2;
+  }
 
   db_query_ctx_t* ctx = malloc(sizeof(db_query_ctx_t));
   if (!ctx) {
@@ -470,7 +482,9 @@ int lunet_db_exec(lua_State* L) {
   if (lunet_ensure_coroutine(L, "db.exec")) {
     return lua_error(L);
   }
-  if (lua_gettop(L) < 2) {
+  
+  int n = lua_gettop(L);
+  if (n < 2) {
     lua_pushnil(L);
     lua_pushstring(L, "db.exec requires connection and sql string");
     return 2;
@@ -490,6 +504,15 @@ int lunet_db_exec(lua_State* L) {
   }
 
   const char* query = luaL_checkstring(L, 2);
+  int param_count = n - 2; // Number of parameters
+  
+  // For now, if there are parameters, we'll use a placeholder
+  // TODO: Implement actual prepared statement support
+  if (param_count > 0) {
+    lua_pushnil(L);
+    lua_pushstring(L, "prepared statements not yet implemented");
+    return 2;
+  }
 
   db_exec_ctx_t* ctx = malloc(sizeof(db_exec_ctx_t));
   if (!ctx) {
@@ -544,3 +567,159 @@ int lunet_db_escape(lua_State* L) {
   }
   return 1;
 }
+
+// Helper function to count parameters in SQL string
+static int count_params(const char* sql) {
+  int count = 0;
+  for (const char* p = sql; *p; p++) {
+    if (*p == '?') count++;
+  }
+  return count;
+}
+
+// New query function with parameter support
+int lunet_db_query_params(lua_State* L) {
+  if (lunet_ensure_coroutine(L, "db.query")) {
+    return lua_error(L);
+  }
+  
+  int n = lua_gettop(L);
+  if (n < 2) {
+    lua_pushnil(L);
+    lua_pushstring(L, "db.query requires connection and sql string");
+    return 2;
+  }
+  
+  lunet_mysql_conn_t* wrapper = (lunet_mysql_conn_t*)luaL_testudata(L, 1, LUNET_MYSQL_CONN_MT);
+  if (!wrapper) {
+    lua_pushnil(L);
+    lua_pushstring(L, "db.query requires a valid connection");
+    return 2;
+  }
+  
+  if (wrapper->closed || !wrapper->conn) {
+    lua_pushnil(L);
+    lua_pushstring(L, "connection is closed");
+    return 2;
+  }
+  
+  const char* query = luaL_checkstring(L, 2);
+  int param_count = n - 2; // Number of parameters
+  
+  // For now, if there are parameters, we'll use a placeholder
+  // TODO: Implement actual prepared statement support
+  if (param_count > 0) {
+    lua_pushnil(L);
+    lua_pushstring(L, "prepared statements not yet implemented");
+    return 2;
+  }
+  
+  // If no parameters, fall back to original implementation
+  // This maintains backward compatibility during the refactor
+  db_query_ctx_t* ctx = malloc(sizeof(db_query_ctx_t));
+  if (!ctx) {
+    lua_pushstring(L, "out of memory");
+    return lua_error(L);
+  }
+  memset(ctx, 0, sizeof(*ctx));
+  ctx->L = L;
+  ctx->req.data = ctx;
+  ctx->wrapper = wrapper;
+  ctx->query = strdup(query);
+  if (!ctx->query) {
+    free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, "out of memory");
+    return 2;
+  }
+
+  lua_pushthread(L);
+  ctx->co_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  int ret = uv_queue_work(uv_default_loop(), &ctx->req, db_query_work_cb, db_query_after_cb);
+  if (ret < 0) {
+    luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
+    free(ctx->query);
+    free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, uv_strerror(ret));
+    return 2;
+  }
+
+  return lua_yield(L, 0);
+}
+
+// New exec function with parameter support
+int lunet_db_exec_params(lua_State* L) {
+  if (lunet_ensure_coroutine(L, "db.exec")) {
+    return lua_error(L);
+  }
+  
+  int n = lua_gettop(L);
+  if (n < 2) {
+    lua_pushnil(L);
+    lua_pushstring(L, "db.exec requires connection and sql string");
+    return 2;
+  }
+  
+  lunet_mysql_conn_t* wrapper = (lunet_mysql_conn_t*)luaL_testudata(L, 1, LUNET_MYSQL_CONN_MT);
+  if (!wrapper) {
+    lua_pushnil(L);
+    lua_pushstring(L, "db.exec requires a valid connection");
+    return 2;
+  }
+  
+  if (wrapper->closed || !wrapper->conn) {
+    lua_pushnil(L);
+    lua_pushstring(L, "connection is closed");
+    return 2;
+  }
+  
+  const char* query = luaL_checkstring(L, 2);
+  int param_count = n - 2; // Number of parameters
+  
+  // For now, if there are parameters, we'll use a placeholder
+  // TODO: Implement actual prepared statement support
+  if (param_count > 0) {
+    lua_pushnil(L);
+    lua_pushstring(L, "prepared statements not yet implemented");
+    return 2;
+  }
+  
+  // If no parameters, fall back to original implementation
+  // This maintains backward compatibility during the refactor
+  db_exec_ctx_t* ctx = malloc(sizeof(db_exec_ctx_t));
+  if (!ctx) {
+    lua_pushstring(L, "out of memory");
+    return lua_error(L);
+  }
+  memset(ctx, 0, sizeof(*ctx));
+  ctx->L = L;
+  ctx->req.data = ctx;
+  ctx->wrapper = wrapper;
+  ctx->query = strdup(query);
+  if (!ctx->query) {
+    free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, "out of memory");
+    return 2;
+  }
+
+  lua_pushthread(L);
+  ctx->co_ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+  int ret = uv_queue_work(uv_default_loop(), &ctx->req, db_exec_work_cb, db_exec_after_cb);
+  if (ret < 0) {
+    luaL_unref(L, LUA_REGISTRYINDEX, ctx->co_ref);
+    free(ctx->query);
+    free(ctx);
+    lua_pushnil(L);
+    lua_pushstring(L, uv_strerror(ret));
+    return 2;
+  }
+
+  return lua_yield(L, 0);
+}
+
+
+

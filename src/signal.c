@@ -9,6 +9,7 @@
 #include <uv.h>
 
 #include "co.h"
+#include "trace.h"
 
 typedef struct {
   uv_signal_t handle;

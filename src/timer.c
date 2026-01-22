@@ -6,6 +6,7 @@
 
 #include "co.h"
 #include "rt.h"
+#include "trace.h"
 
 typedef struct {
   uv_timer_t timer;

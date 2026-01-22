@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "co.h"
+#include "trace.h"
 #include "uv.h"
 
 #define LUNET_PG_CONN_MT "lunet.pg.conn"
@@ -531,4 +532,17 @@ int lunet_db_escape(lua_State* L) {
     return lua_error(L);
   }
   return 1;
+}
+
+// Placeholder implementations for parameter functions (to be implemented)
+int lunet_db_query_params(lua_State* L) {
+  // For now, just delegate to the regular query function
+  // This maintains API compatibility while we implement prepared statements
+  return lunet_db_query(L);
+}
+
+int lunet_db_exec_params(lua_State* L) {
+  // For now, just delegate to the regular exec function
+  // This maintains API compatibility while we implement prepared statements
+  return lunet_db_exec(L);
 }
