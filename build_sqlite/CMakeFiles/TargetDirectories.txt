@@ -1,0 +1,3 @@
+/Users/Shared/lunet/build_sqlite/CMakeFiles/lunet.dir
+/Users/Shared/lunet/build_sqlite/CMakeFiles/edit_cache.dir
+/Users/Shared/lunet/build_sqlite/CMakeFiles/rebuild_cache.dir

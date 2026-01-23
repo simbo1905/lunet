@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/Shared/lunet/build_sqlite/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

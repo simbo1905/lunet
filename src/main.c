@@ -2,6 +2,7 @@
 #include <lua.h>
 #include <lualib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <uv.h>
 
 #include "co.h"
@@ -13,6 +14,7 @@
 #include "rt.h"
 #include "socket.h"
 #include "timer.h"
+#include "trace.h"
 
 // register core module
 int lunet_open_core(lua_State *L) {
@@ -53,12 +55,23 @@ int lunet_open_fs(lua_State *L) {
   return 1;
 }
 
-#ifdef LUNET_ENABLE_MYSQL
-int lunet_open_mysql(lua_State *L) {
-  luaL_Reg funcs[] = {{"open", lunet_mysql_open},
-                      {"close", lunet_mysql_close},
-                      {"query", lunet_mysql_query},
-                      {"exec", lunet_mysql_exec},
+#ifdef LUNET_HAS_DB
+int lunet_db_open(lua_State* L);
+int lunet_db_close(lua_State* L);
+int lunet_db_query(lua_State* L);
+int lunet_db_exec(lua_State* L);
+int lunet_db_escape(lua_State* L);
+int lunet_db_query_params(lua_State* L);
+int lunet_db_exec_params(lua_State* L);
+
+int lunet_open_db(lua_State *L) {
+  luaL_Reg funcs[] = {{"open", lunet_db_open},
+                      {"close", lunet_db_close},
+                      {"query", lunet_db_query},
+                      {"exec", lunet_db_exec},
+                      {"escape", lunet_db_escape},
+                      {"query_params", lunet_db_query_params},
+                      {"exec_params", lunet_db_exec_params},
                       {NULL, NULL}};
   luaL_newlib(L, funcs);
   return 1;
@@ -91,12 +104,13 @@ void lunet_open(lua_State *L) {
   lua_pushcfunction(L, lunet_open_fs);
   lua_setfield(L, -2, "lunet.fs");
   lua_pop(L, 2);
-#ifdef LUNET_ENABLE_MYSQL
-  // register mysql module
+
+#ifdef LUNET_HAS_DB
+  // register unified db module
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "preload");
-  lua_pushcfunction(L, lunet_open_mysql);
-  lua_setfield(L, -2, "lunet.mysql");
+  lua_pushcfunction(L, lunet_open_db);
+  lua_setfield(L, -2, "lunet.db");
   lua_pop(L, 2);
 #endif
 }
@@ -106,6 +120,9 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Usage: %s <lua_file>\n", argv[0]);
     return 1;
   }
+
+  /* Initialize tracing (no-op in release builds) */
+  lunet_trace_init();
 
   lua_State *L = luaL_newstate();
   luaL_openlibs(L);
@@ -122,6 +139,11 @@ int main(int argc, char **argv) {
   }
 
   int ret = uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  
+  /* Dump trace statistics and assert balance (no-op in release builds) */
+  lunet_trace_dump();
+  lunet_trace_assert_balanced("shutdown");
+  
   lua_close(L);
   return ret;
 }

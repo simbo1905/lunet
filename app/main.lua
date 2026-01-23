@@ -1,5 +1,6 @@
 io.stdout:setvbuf('no')
 local lunet = require("lunet")
+
 local socket = require("lunet.socket")
 
 package.path = package.path .. ";/Users/Shared/lunet/?.lua"
@@ -11,11 +12,7 @@ local db = require("app.lib.db")
 local auth = require("app.lib.auth")
 
 db.set_config(config.db)
-local db_init_ok, db_init_err = db.init()
-if not db_init_ok then
-    print("Database initialization failed: " .. (db_init_err or "unknown error"))
-    os.exit(1)
-end
+-- db.init() moved to inside lunet.spawn as it requires a coroutine
 auth.set_config(config)
 
 local handlers = {
@@ -189,6 +186,12 @@ local function handle_client(client)
 end
 
 lunet.spawn(function()
+    local db_init_ok, db_init_err = db.init()
+    if not db_init_ok then
+        print("Database initialization failed: " .. (db_init_err or "unknown error"))
+        os.exit(1)
+    end
+
     local listener, err = socket.listen("tcp", config.server.host, config.server.port)
     if not listener then
         print("Failed to listen: " .. (err or "unknown error"))
