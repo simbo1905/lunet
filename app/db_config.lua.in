@@ -5,5 +5,5 @@ return {
     user = "root",
     password = "root",
     database = "conduit",
-    path = ".tmp/conduit.sqlite3",
+    path = "conduit.db",
 }
