@@ -636,13 +636,13 @@ math.randomseed(os.time())
 
 lunet.spawn(function()
     local port = tonumber(getenv("PORT")) or 8080
-    local listener, err = socket.listen("tcp", "0.0.0.0", port)
+    local listener, err = socket.listen("tcp", "127.0.0.1", port)
     if not listener then
         print("FATAL: Cannot listen: " .. (err or "unknown"))
         return
     end
 
-    print("MCP SSE Server running on http://0.0.0.0:" .. port)
+    print("MCP SSE Server running on http://127.0.0.1:" .. port)
     print("Protocol: MCP " .. MCP_VERSION)
     print("Tools: tavily-search")
     print("")

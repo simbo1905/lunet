@@ -3,6 +3,7 @@
 #include <lualib.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <uv.h>
 
 #include "co.h"
@@ -12,6 +13,9 @@
 #include "socket.h"
 #include "timer.h"
 #include "trace.h"
+#include "runtime.h"
+
+lunet_runtime_config_t g_lunet_config = {0};
 
 // register core module
 int lunet_open_core(lua_State *L) {
@@ -113,8 +117,31 @@ void lunet_open(lua_State *L) {
 }
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    fprintf(stderr, "Usage: %s <lua_file>\n", argv[0]);
+  if (argc < 2) {
+    fprintf(stderr, "Usage: %s [OPTIONS] <lua_file>\n", argv[0]);
+    fprintf(stderr, "\nOptions:\n");
+    fprintf(stderr, "  --dangerously-skip-loopback-restriction\n");
+    fprintf(stderr, "      Allow binding to any network interface. By default, binding is restricted\n");
+    fprintf(stderr, "      to loopback (127.0.0.1, ::1) or Unix sockets.\n");
+    return 1;
+  }
+
+  int script_index = 0;
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "--dangerously-skip-loopback-restriction") == 0) {
+      g_lunet_config.dangerously_skip_loopback_restriction = 1;
+      fprintf(stderr, "WARNING: Loopback restriction disabled. Binding to public interfaces allowed.\n");
+    } else if (argv[i][0] == '-') {
+      fprintf(stderr, "Unknown option: %s\n", argv[i]);
+      return 1;
+    } else {
+      script_index = i;
+      break;
+    }
+  }
+
+  if (script_index == 0) {
+    fprintf(stderr, "Error: No script file specified.\n");
     return 1;
   }
 
@@ -127,7 +154,7 @@ int main(int argc, char **argv) {
   lunet_open(L);
 
   // run lua file
-  if (luaL_dofile(L, argv[1]) != LUA_OK) {
+  if (luaL_dofile(L, argv[script_index]) != LUA_OK) {
     const char *error = lua_tostring(L, -1);
     fprintf(stderr, "Error: %s\n", error);
     lua_pop(L, 1);

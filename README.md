@@ -16,6 +16,12 @@ A high-performance coroutine-based networking library for LuaJIT, built on top o
 > 
 > [Lunet: Design and Implementation of a High-Performance Coroutine Network Library](https://www.ddhigh.com/en/2025/07/12/lunet-high-performance-coroutine-network-library/)
 
+## Security Architecture
+
+lunet follows a strict qmail-style security model. By default, it refuses to bind to public network interfaces.
+
+**[Read the Security Architecture Guide](docs/SECURITY_ARCHITECTURE.md)**
+
 ## RealWorld Conduit API Demo
 
 This fork includes an implementation of the [RealWorld "Conduit"](https://github.com/gothinkster/realworld) API spec - a Medium.com clone demonstrating Lunet's capabilities as a web backend framework. The implementation covers users, profiles, articles, comments, tags, favorites, and follows endpoints. The app is located in the `app/` directory.
@@ -126,9 +132,9 @@ Lunet is a coroutine-based networking library that provides synchronous APIs wit
 - `sleep(ms)`: Suspend coroutine for specified milliseconds
 
 ### Socket Module (`lunet.socket`)
-- `listen(protocol, host, port)`: Create TCP server
+- `listen(protocol, host, port)`: Create server (`tcp` with host/port, or `unix` with path)
 - `accept(listener)`: Accept incoming connections
-- `connect(host, port)`: Connect to remote server
+- `connect(host, port)`: Connect to remote server (`tcp` host/port, or `unix` path)
 - `read(client)`: Read data from socket
 - `write(client, data)`: Write data to socket
 - `getpeername(client)`: Get peer address

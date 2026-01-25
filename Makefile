@@ -153,5 +153,15 @@ rocks-validate: ## Validate rockspec syntax
 	done
 	@echo "All rockspecs valid."
 
+# =============================================================================
+# Security / HTTPS Demo
+# =============================================================================
+
+certs: ## Generate self-signed dev certificates
+	bin/generate_dev_certs.sh
+
+nginx-https: certs build ## Start Nginx HTTPS demo with Unix sockets
+	bin/start_nginx_https.sh
+
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'

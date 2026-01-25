@@ -12,6 +12,21 @@ You MUST NOT do any git reset or stash or an git rm or rm or anything that might
 2.  **TIMEOUTS:** All commands interacting with the server or DB must have a timeout (`timeout 3` or `curl --max-time 3`).
 3.  **NO DATA LOSS:** Never use `rm -rf` to clear directories. Move them to `.tmp/` with a timestamp: `mv dir .tmp/dir.YYYYMMDD_HHMMSS`.
 4.  **LOGGING:** All test runs must log stdout/stderr to `.tmp/logs/YYYYMMDD_HHMMSS/`.
+5.  **SECURE BINDING:** Never bind to `0.0.0.0` or public interfaces. Use Unix sockets (preferred) or `127.0.0.1` (development). Only bypass this rule if the user explicitly requests it via CLI flag `--dangerously-skip-loopback-restriction`.
+
+## Security & Network Testing
+
+When modifying networking code (sockets, binding, listeners):
+
+1.  **Verify Loopback Restriction:**
+    - Try binding to `0.0.0.0` -> MUST FAIL (without flag)
+    - Try binding to `127.0.0.1` -> MUST SUCCEED
+    - Try binding to Unix socket -> MUST SUCCEED
+
+2.  **Verify Unix Socket Support:**
+    - Ensure `socket.listen("unix", "/path")` works
+    - Verify permissions on the socket file (should be user-only by default, or as configured)
+    - Verify cleanup (socket file removed on close/exit)
 
 ## MariaDB Infrastructure (Lima VM)
 
