@@ -184,6 +184,7 @@ set(SOURCES
     src/rt.c
     src/signal.c
     src/socket.c
+    src/udp.c
     src/stl.c
     src/timer.c
     src/trace.c

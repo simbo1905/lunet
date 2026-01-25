@@ -19,6 +19,10 @@ lunet_trace_state_t lunet_trace_state;
 
 void lunet_trace_init(void) {
   memset(&lunet_trace_state, 0, sizeof(lunet_trace_state));
+  /* Initialize ref_to_loc map to -1 (invalid) */
+  for (int i = 0; i < LUNET_TRACE_MAX_REFS; i++) {
+    lunet_trace_state.ref_to_loc[i] = -1;
+  }
   fprintf(stderr, "[TRACE] Coroutine reference tracing initialized\n");
 }
 
@@ -44,7 +48,7 @@ static int find_or_create_location(const char *file, int line) {
   return -1;
 }
 
-void lunet_trace_coref_add(const char *file, int line) {
+void lunet_trace_coref_add(const char *file, int line, int ref) {
   lunet_trace_state.coref_balance++;
   lunet_trace_state.coref_total_created++;
   
@@ -57,25 +61,50 @@ void lunet_trace_coref_add(const char *file, int line) {
   int loc = find_or_create_location(file, line);
   if (loc >= 0) {
     lunet_trace_state.locations[loc].count++;
+    
+    /* Store location mapping for release if ref is valid */
+    if (ref >= 0 && ref < LUNET_TRACE_MAX_REFS) {
+      lunet_trace_state.ref_to_loc[ref] = loc;
+    }
   }
   
-  fprintf(stderr, "[TRACE] COREF_ADD at %s:%d (balance=%d, total_created=%d)\n",
-          file, line, lunet_trace_state.coref_balance, 
+  fprintf(stderr, "[TRACE] COREF_ADD at %s:%d (ref=%d, balance=%d, total_created=%d)\n",
+          file, line, ref, lunet_trace_state.coref_balance, 
           lunet_trace_state.coref_total_created);
 }
 
-void lunet_trace_coref_remove(const char *file, int line) {
+void lunet_trace_coref_remove(const char *file, int line, int ref) {
   lunet_trace_state.coref_balance--;
   lunet_trace_state.coref_total_released++;
   
-  /* Track location */
-  int loc = find_or_create_location(file, line);
-  if (loc >= 0) {
-    lunet_trace_state.locations[loc].count--;
+  /* Track location via mapping from add */
+  if (ref >= 0 && ref < LUNET_TRACE_MAX_REFS) {
+    int loc = lunet_trace_state.ref_to_loc[ref];
+    /* Check if we have a valid mapping (0 is a valid loc index, but uninitialized is 0... 
+       Wait, memset 0 initializes to 0. So loc 0 is ambiguous if uninitialized.
+       However, find_or_create_location returns sequential indices starting at 0.
+       We should probably initialize ref_to_loc to -1.
+       Let's assume memset 0 means index 0. If location 0 hasn't been created, 
+       then location_count is 0, so checking loc < location_count is safe.
+    */
+    if (loc < lunet_trace_state.location_count) {
+       lunet_trace_state.locations[loc].count--;
+    } else {
+       /* Fallback if tracking lost or ref reused weirdly? */
+       /* Maybe track release location as negative? No, that causes the bug.
+          If we can't match it, we just don't decrement any location count.
+          This will show as a leak in summary, which is better than negative counts.
+       */
+       fprintf(stderr, "[TRACE] WARNING: Release of ref %d at %s:%d has no matching creation location.\n",
+               ref, file, line);
+    }
+    
+    /* Clear mapping */
+    lunet_trace_state.ref_to_loc[ref] = -1; /* Mark as unused */
   }
   
-  fprintf(stderr, "[TRACE] COREF_RELEASE at %s:%d (balance=%d, total_released=%d)\n",
-          file, line, lunet_trace_state.coref_balance,
+  fprintf(stderr, "[TRACE] COREF_RELEASE at %s:%d (ref=%d, balance=%d, total_released=%d)\n",
+          file, line, ref, lunet_trace_state.coref_balance,
           lunet_trace_state.coref_total_released);
   
   /* Warn on negative balance (double-release) */

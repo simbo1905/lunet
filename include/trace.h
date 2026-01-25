@@ -38,6 +38,8 @@
 
 /* Maximum tracked locations for debugging leaks */
 #define LUNET_TRACE_MAX_LOCATIONS 64
+/* Maximum tracked references for mapping release back to creation */
+#define LUNET_TRACE_MAX_REFS 4096
 
 typedef struct {
   const char *file;
@@ -56,6 +58,9 @@ typedef struct {
   lunet_trace_location_t locations[LUNET_TRACE_MAX_LOCATIONS];
   int location_count;
   
+  /* Map from ref (int) to location index (int) */
+  int ref_to_loc[LUNET_TRACE_MAX_REFS];
+
   /* Stack tracking */
   int stack_checks_passed;
   int stack_checks_failed;
@@ -74,8 +79,8 @@ void lunet_trace_dump(void);
 void lunet_trace_assert_balanced(const char *context);
 
 /* Internal tracking functions - called by macros */
-void lunet_trace_coref_add(const char *file, int line);
-void lunet_trace_coref_remove(const char *file, int line);
+void lunet_trace_coref_add(const char *file, int line, int ref);
+void lunet_trace_coref_remove(const char *file, int line, int ref);
 void lunet_trace_stack_check(lua_State *L, int expected_base, int expected_delta,
                               const char *file, int line);
 
@@ -142,7 +147,7 @@ static inline int _lunet_ensure_coroutine_checked(lua_State *L, const char *func
 #define lunet_coref_create(L, ref_var) do { \
     lua_pushthread(L); \
     (ref_var) = luaL_ref(L, LUA_REGISTRYINDEX); \
-    lunet_trace_coref_add(__FILE__, __LINE__); \
+    lunet_trace_coref_add(__FILE__, __LINE__, (ref_var)); \
 } while(0)
 
 /*
@@ -153,7 +158,7 @@ static inline int _lunet_ensure_coroutine_checked(lua_State *L, const char *func
  */
 #define lunet_coref_release(L, ref) do { \
     luaL_unref(L, LUA_REGISTRYINDEX, ref); \
-    lunet_trace_coref_remove(__FILE__, __LINE__); \
+    lunet_trace_coref_remove(__FILE__, __LINE__, (ref)); \
 } while(0)
 
 /*
@@ -164,7 +169,7 @@ static inline int _lunet_ensure_coroutine_checked(lua_State *L, const char *func
  */
 #define lunet_coref_create_raw(L, ref_var) do { \
     (ref_var) = luaL_ref(L, LUA_REGISTRYINDEX); \
-    lunet_trace_coref_add(__FILE__, __LINE__); \
+    lunet_trace_coref_add(__FILE__, __LINE__, (ref_var)); \
 } while(0)
 
 #else /* !LUNET_TRACE */

@@ -295,3 +295,54 @@ The "RealWorld Conduit" demo app (using SQLite) must be subjected to parallel lo
 
 If the server crashes during load testing (exit code > 0 or SIGABRT), it is a **CRITICAL FAILURE**. Check logs for `[TRACE]` assertions.
 
+## UDP Module Tracing
+
+The UDP module (`src/udp.c`) has its own domain-specific tracing macros in addition to the generic coroutine tracing. These trace network I/O operations and are zero-cost in release builds.
+
+### UDP Trace Macros
+
+| Macro | Purpose | Output |
+|-------|---------|--------|
+| `UDP_TRACE_BIND(handle)` | Socket bound (uses `uv_udp_getsockname` for actual port) | `[UDP_TRACE] BIND #n host:port` |
+| `UDP_TRACE_TX(ctx, host, port, len)` | Datagram sent (updates global & local counters) | `[UDP_TRACE] TX #n -> host:port (len bytes)` |
+| `UDP_TRACE_RX(ctx, host, port, len)` | Datagram received (updates global & local counters) | `[UDP_TRACE] RX #n <- host:port (len bytes)` |
+| `UDP_TRACE_RECV_WAIT()` | Coroutine yielding waiting for data | `[UDP_TRACE] RECV_WAIT (coroutine yielding)` |
+| `UDP_TRACE_RECV_RESUME(host, port, len)` | Coroutine resumed with data | `[UDP_TRACE] RECV_RESUME <- host:port (len bytes)` |
+| `UDP_TRACE_RECV_DELIVER(host, port, len)` | Data delivered immediately from queue | `[UDP_TRACE] RECV_DELIVER (immediate) <- host:port (len bytes)` |
+| `UDP_TRACE_CLOSE(ctx)` | Socket closed (dumps local stats) | `[UDP_TRACE] CLOSE (local: tx=n rx=n) (global: ...)` |
+
+### Counters
+
+The macros maintain **static (file-scope) counters** in `src/udp.c`:
+- `udp_trace_bind_count` - total sockets bound
+- `udp_trace_tx_count` - total datagrams sent
+- `udp_trace_rx_count` - total datagrams received
+
+Per-socket counters (`trace_tx`, `trace_rx`) are stored in `udp_ctx_t` (guarded by `LUNET_TRACE`).
+
+### Shutdown Summary
+
+At application exit (in debug builds), `lunet_udp_trace_summary()` is called:
+`[UDP_TRACE] SUMMARY: binds=n tx=n rx=n`
+
+### Usage Pattern
+
+When adding new UDP operations:
+
+1. Add `UDP_TRACE_*` calls at key points (after address resolution, before/after I/O)
+2. Build with `make build-debug` to enable tracing
+3. Run test scripts and inspect stderr for `[UDP_TRACE]` lines
+4. Verify counts balance (e.g., echo server should have tx == rx)
+
+### Example Output
+
+```
+[UDP_TRACE] BIND #1 127.0.0.1:20001
+[UDP_TRACE] RECV_WAIT (coroutine yielding)
+[UDP_TRACE] RX #1 <- 127.0.0.1:54321 (64 bytes)
+[UDP_TRACE] RECV_RESUME <- 127.0.0.1:54321 (64 bytes)
+[UDP_TRACE] TX #1 -> 127.0.0.1:20002 (72 bytes)
+[UDP_TRACE] CLOSE (tx=1 rx=1)
+```
+
+
