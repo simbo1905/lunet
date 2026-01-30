@@ -81,7 +81,8 @@ target("lunet")
         -- Force MSVC to compile .c files as C (not C++).
         add_cflags("/TC")
         add_defines("LUNET_BUILDING_DLL")
-        add_syslinks("ws2_32", "iphlpapi", "userenv", "psapi")
+        -- libuv on Windows pulls in a number of Win32/COM/security APIs.
+        add_syslinks("ws2_32", "iphlpapi", "userenv", "psapi", "advapi32", "user32", "shell32", "ole32", "dbghelp")
     end
     
     -- Enable tracing if requested
@@ -109,7 +110,7 @@ target("lunet-bin")
     -- Windows: system libs
     if is_plat("windows") then
         add_cflags("/TC")
-        add_syslinks("ws2_32", "iphlpapi", "userenv", "psapi")
+        add_syslinks("ws2_32", "iphlpapi", "userenv", "psapi", "advapi32", "user32", "shell32", "ole32", "dbghelp")
     end
     
     -- Enable tracing if requested
