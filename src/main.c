@@ -216,6 +216,31 @@ int main(int argc, char **argv) {
   set_default_luaL(L);
   lunet_open(L);
 
+  // Add binary's directory to cpath for finding driver .so files
+  // Drivers are in same dir as binary, named like sqlite3.so, mysql.so
+  // They're loaded as lunet.sqlite3, so we need lunet/?.so pattern
+  // Create symlink-style lookup: binarydir/lunet/?.so -> binarydir/?.so
+  {
+    char *script_path = realpath(argv[0], NULL);
+    if (script_path) {
+      char *last_slash = strrchr(script_path, '/');
+      if (last_slash) {
+        *last_slash = '\0';
+        lua_getglobal(L, "package");
+        lua_getfield(L, -1, "cpath");
+        const char *old_cpath = lua_tostring(L, -1);
+        lua_pop(L, 1);
+        char new_cpath[4096];
+        snprintf(new_cpath, sizeof(new_cpath), "%s/lunet/?.so;%s/?.so;%s",
+                 script_path, script_path, old_cpath ? old_cpath : "");
+        lua_pushstring(L, new_cpath);
+        lua_setfield(L, -2, "cpath");
+        lua_pop(L, 1);
+      }
+      free(script_path);
+    }
+  }
+
   // run lua file
   if (luaL_dofile(L, argv[script_index]) != LUA_OK) {
     const char *error = lua_tostring(L, -1);

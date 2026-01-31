@@ -103,10 +103,10 @@ target("lunet")
         add_defines("LUNET_TRACE")
     end
 
--- Standalone executable target for ./lunet script.lua
+-- Standalone executable target for ./lunet-run script.lua
 target("lunet-bin")
     set_kind("binary")
-    set_basename("lunet")
+    set_basename("lunet-run")  -- Avoid conflict with lunet/ driver directory
     
     add_files(core_sources)
     add_includedirs("include", {public = true})
@@ -142,7 +142,8 @@ target("lunet-bin")
 target("lunet-sqlite3")
     set_kind("shared")
     set_prefixname("")
-    set_basename("sqlite3")  -- Output: sqlite3.so (loaded as lunet.sqlite3 from lunet/ dir)
+    set_basename("sqlite3")  -- Output: lunet/sqlite3.so
+    set_targetdir("$(buildir)/$(plat)/$(arch)/$(mode)/lunet")
     if is_plat("windows") then
         set_extension(".dll")
     else
@@ -178,7 +179,8 @@ target_end()
 target("lunet-mysql")
     set_kind("shared")
     set_prefixname("")
-    set_basename("mysql")  -- Output: mysql.so (loaded as lunet.mysql from lunet/ dir)
+    set_basename("mysql")  -- Output: lunet/mysql.so
+    set_targetdir("$(buildir)/$(plat)/$(arch)/$(mode)/lunet")
     if is_plat("windows") then
         set_extension(".dll")
     else
@@ -214,7 +216,8 @@ target_end()
 target("lunet-postgres")
     set_kind("shared")
     set_prefixname("")
-    set_basename("postgres")  -- Output: postgres.so (loaded as lunet.postgres from lunet/ dir)
+    set_basename("postgres")  -- Output: lunet/postgres.so
+    set_targetdir("$(buildir)/$(plat)/$(arch)/$(mode)/lunet")
     if is_plat("windows") then
         set_extension(".dll")
     else

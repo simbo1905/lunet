@@ -1,6 +1,7 @@
 #include "lunet_db_mysql.h"
 
 #include <mysql.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -16,13 +17,20 @@ typedef struct {
   int closed;
 } lunet_mysql_conn_t;
 
-static void lunet_mysql_conn_destroy(lunet_mysql_conn_t* wrapper) {
+// Close connection but keep mutex intact (for explicit db.close())
+static void lunet_mysql_conn_close(lunet_mysql_conn_t* wrapper) {
   if (!wrapper || wrapper->closed) return;
   wrapper->closed = 1;
   if (wrapper->conn) {
     mysql_close(wrapper->conn);
     wrapper->conn = NULL;
   }
+}
+
+// Full cleanup including mutex (only called from GC)
+static void lunet_mysql_conn_destroy(lunet_mysql_conn_t* wrapper) {
+  if (!wrapper) return;
+  lunet_mysql_conn_close(wrapper);
   uv_mutex_destroy(&wrapper->mutex);
 }
 
@@ -323,7 +331,7 @@ int lunet_db_close(lua_State* L) {
   }
 
   uv_mutex_lock(&wrapper->mutex);
-  lunet_mysql_conn_destroy(wrapper);
+  lunet_mysql_conn_close(wrapper);  // Close connection but keep mutex for unlock
   uv_mutex_unlock(&wrapper->mutex);
 
   lua_pushnil(L);
@@ -477,7 +485,8 @@ static void db_query_work_cb(uv_work_t* req) {
   ctx->col_names = malloc(sizeof(char*) * ctx->ncols);
   ctx->col_types = malloc(sizeof(int) * ctx->ncols);
   MYSQL_BIND* result_bind = malloc(sizeof(MYSQL_BIND) * ctx->ncols);
-  my_bool* is_null = malloc(sizeof(my_bool) * ctx->ncols);
+  // Use char for is_null to match my_bool on older MySQL/MariaDB (char vs bool)
+  char* is_null = malloc(sizeof(char) * ctx->ncols);
   unsigned long* length = malloc(sizeof(unsigned long) * ctx->ncols);
   
   if (!ctx->col_names || !ctx->col_types || !result_bind || !is_null || !length) {
@@ -502,10 +511,13 @@ static void db_query_work_cb(uv_work_t* req) {
       
       // Bind everything as string for simplicity, preserving type info in ctx->col_types
       result_bind[i].buffer_type = MYSQL_TYPE_STRING;
-      // Add extra space for null terminator
-      unsigned long len = fields[i].max_length;
-      if (len == 0) len = 1; // Minimum length
-      // For safe measure, maybe arbitrary limit? max_length is accurate after store_result.
+      // Use field length (declared column size) as it's more reliable than max_length
+      // max_length can be 0 in some MariaDB configurations even after store_result
+      unsigned long len = fields[i].length;
+      if (len == 0) len = fields[i].max_length;
+      if (len == 0) len = 255;  // Fallback for text columns without declared length
+      // Cap at reasonable size to avoid huge allocations for TEXT/BLOB
+      if (len > 65535) len = 65535;
       result_bind[i].buffer_length = len + 1;
       result_bind[i].buffer = malloc(result_bind[i].buffer_length);
       result_bind[i].is_null = &is_null[i];

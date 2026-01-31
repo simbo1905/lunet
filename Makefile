@@ -14,7 +14,7 @@ build: lint ## Build lunet shared library and executable with xmake
 	@echo ""
 	@echo "Build complete:"
 	@echo "  Module: $$(find build -path '*/release/lunet.so' -type f 2>/dev/null | head -1)"
-	@echo "  Binary: $$(find build -path '*/release/lunet' -type f 2>/dev/null | head -1)"
+	@echo "  Binary: $$(find build -path '*/release/lunet-run' -type f 2>/dev/null | head -1)"
 
 build-debug: lint ## Build with LUNET_TRACE=ON for debugging (enables safety assertions)
 	@echo "=== Building lunet with xmake (debug mode with tracing) ==="
@@ -112,7 +112,7 @@ rocks-validate: ## Validate rockspec syntax
 
 smoke: build ## Run database driver smoke tests (SQLite3 required, MySQL/Postgres optional)
 	@echo "=== Running DB Driver Smoke Tests ==="
-	@LUNET_BIN=$$(find build -path '*/release/lunet' -type f 2>/dev/null | head -1); \
+	@LUNET_BIN=$$(find build -path '*/release/lunet-run' -type f 2>/dev/null | head -1); \
 	if [ -z "$$LUNET_BIN" ]; then echo "Error: lunet binary not found"; exit 1; fi; \
 	echo ""; \
 	echo "--- SQLite3 (required) ---"; \

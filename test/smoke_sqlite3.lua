@@ -9,7 +9,7 @@ local function test_sqlite3()
     
     -- Test 1: Open in-memory database
     print("1. Opening in-memory database...")
-    local conn, err = db.open(":memory:")
+    local conn, err = db.open({path = ":memory:"})
     if not conn then
         print("FAIL: Could not open database: " .. tostring(err))
         __lunet_exit_code = 1
