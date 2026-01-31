@@ -65,8 +65,11 @@ jobs:
         $env:VCPKG_DEFAULT_TRIPLET = "x64-windows"
         xmake f -m release -y
 
-    - name: Build
-      run: xmake build -a
+    - name: Build Core
+      run: xmake build lunet lunet-bin
+    
+    - name: Build SQLite3 Driver
+      run: xmake build lunet-sqlite3
 
     - name: Test (Proof of Life - Unix)
       if: runner.os != 'Windows'
