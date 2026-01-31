@@ -1,13 +1,10 @@
-#include "socket.h"
+#include "lunet_unix.h"
+#include "lunet_exports.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
-#include <ws2tcpip.h>
 #else
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h> 
+#include <unistd.h> // for unlink
 #endif
 
 #include <stdlib.h>
@@ -18,29 +15,24 @@
 #include "stl.h"
 #include "trace.h"
 #include "runtime.h"
+#include "rt.h"
 
 static size_t read_buffer_size = 4096;
 
-static int is_loopback_address(const char *host) {
-  return strcmp(host, "127.0.0.1") == 0 ||
-         strcmp(host, "::1") == 0 ||
-         strcmp(host, "localhost") == 0;
-}
-
 typedef enum {
-  SOCKET_SERVER,
-  SOCKET_CLIENT,
-} socket_type_t;
+  UNIX_SERVER,
+  UNIX_CLIENT,
+} unix_type_t;
 
 typedef struct {
   union {
-    uv_tcp_t tcp;
+    uv_pipe_t pipe;
     uv_handle_t handle;
     uv_stream_t stream;
   } u;
   
   lua_State *co;
-  socket_type_t type;
+  unix_type_t type;
   union {
     struct {
       int accept_ref;
@@ -52,19 +44,19 @@ typedef struct {
     } client;
   };
 
-} socket_ctx_t;
+} unix_ctx_t;
 
 // write request structure
 typedef struct {
   uv_write_t req;
-  socket_ctx_t *ctx;
+  unix_ctx_t *ctx;
   char *data;
 } write_req_t;
 
-static void lunet_close_cb(uv_handle_t *handle) {
-  socket_ctx_t *ctx = (socket_ctx_t *)handle->data;
+static void lunet_unix_close_cb(uv_handle_t *handle) {
+  unix_ctx_t *ctx = (unix_ctx_t *)handle->data;
   if (ctx) {
-    if (ctx->type == SOCKET_SERVER) {
+    if (ctx->type == UNIX_SERVER) {
       queue_destroy(ctx->server.pending_accepts);
     }
     free(ctx);
@@ -72,9 +64,9 @@ static void lunet_close_cb(uv_handle_t *handle) {
 }
 
 // write complete callback
-static void lunet_write_cb(uv_write_t *req, int status) {
+static void lunet_unix_write_cb(uv_write_t *req, int status) {
   write_req_t *write_req = (write_req_t *)req;
-  socket_ctx_t *ctx = write_req->ctx;
+  unix_ctx_t *ctx = write_req->ctx;
 
   if (ctx->client.write_ref != LUA_NOREF) {
     lua_State *co = ctx->co;
@@ -96,7 +88,7 @@ static void lunet_write_cb(uv_write_t *req, int status) {
       if (resume_status != LUA_OK && resume_status != LUA_YIELD) {
         const char *err = lua_tostring(waiting_co, -1);
         if (err) {
-          fprintf(stderr, "[lunet] resume error in lunet_write_cb: %s\n", err);
+          fprintf(stderr, "[lunet] resume error in lunet_unix_write_cb: %s\n", err);
         }
       }
     }
@@ -114,8 +106,8 @@ static void alloc_buffer(uv_handle_t *handle, size_t suggested_size, uv_buf_t *b
   buf->len = read_buffer_size;
 }
 
-static void lunet_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
-  socket_ctx_t *ctx = (socket_ctx_t *)stream->data;
+static void lunet_unix_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf) {
+  unix_ctx_t *ctx = (unix_ctx_t *)stream->data;
 
   uv_read_stop(stream);
 
@@ -155,8 +147,8 @@ static void lunet_read_cb(uv_stream_t *stream, ssize_t nread, const uv_buf_t *bu
   }
 }
 
-static void lunet_listen_cb(uv_stream_t *server, int status) {
-  socket_ctx_t *ctx = (socket_ctx_t *)server->data;
+static void lunet_unix_listen_cb(uv_stream_t *server, int status) {
+  unix_ctx_t *ctx = (unix_ctx_t *)server->data;
 
   if (status < 0) {
     // there is a coroutine waiting for accept
@@ -186,17 +178,17 @@ static void lunet_listen_cb(uv_stream_t *server, int status) {
   }
 
   // create new client connection
-  socket_ctx_t *client_ctx = malloc(sizeof(socket_ctx_t));
+  unix_ctx_t *client_ctx = malloc(sizeof(unix_ctx_t));
   if (!client_ctx) {
     return;  // ignore this connection
   }
 
   client_ctx->co = ctx->co;
-  client_ctx->type = SOCKET_CLIENT;
+  client_ctx->type = UNIX_CLIENT;
   client_ctx->client.read_ref = LUA_NOREF;
   client_ctx->client.write_ref = LUA_NOREF;
 
-  int ret = uv_tcp_init(uv_default_loop(), &client_ctx->u.tcp);
+  int ret = uv_pipe_init(uv_default_loop(), &client_ctx->u.pipe, 0);
 
   if (ret < 0) {
     free(client_ctx);
@@ -206,7 +198,7 @@ static void lunet_listen_cb(uv_stream_t *server, int status) {
   client_ctx->u.handle.data = client_ctx;
 
   if (uv_accept(server, &client_ctx->u.stream) < 0) {
-    uv_close(&client_ctx->u.handle, lunet_close_cb);
+    uv_close(&client_ctx->u.handle, lunet_unix_close_cb);
     return;
   }
 
@@ -236,45 +228,25 @@ static void lunet_listen_cb(uv_stream_t *server, int status) {
     // there is no coroutine waiting for accept, put the connection into the queue
     if (queue_enqueue(ctx->server.pending_accepts, client_ctx) != 0) {
       // queue is full or error, close the connection
-      uv_close(&client_ctx->u.handle, lunet_close_cb);
+      uv_close(&client_ctx->u.handle, lunet_unix_close_cb);
     }
   }
 }
 
-int lunet_socket_listen(lua_State *co) {
-  if (lunet_ensure_coroutine(co, "socket.listen") != 0) {
+int lunet_unix_listen(lua_State *co) {
+  if (lunet_ensure_coroutine(co, "unix.listen") != 0) {
     return lua_error(co);
   }
-  const char *protocol = luaL_checkstring(co, 1);
-  const char *host = luaL_checkstring(co, 2);
-  int port = luaL_checkinteger(co, 3);
-
-  if (strcmp(protocol, "tcp") != 0) {
-      lua_pushnil(co);
-      lua_pushstring(co, "only tcp is supported");
-      return 2;
-  }
-
-  // Check for secure binding configuration
-  if (!g_lunet_config.dangerously_skip_loopback_restriction && !is_loopback_address(host)) {
-    lua_pushnil(co);
-    lua_pushstring(co, "binding to non-loopback addresses requires --dangerously-skip-loopback-restriction flag");
-    return 2;
-  }
-  if (port < 1 || port > 65535) {
-    lua_pushnil(co);
-    lua_pushstring(co, "port must be between 1 and 65535");
-    return 2;
-  }
-
-  socket_ctx_t *ctx = malloc(sizeof(socket_ctx_t));
+  const char *path = luaL_checkstring(co, 1);
+  
+  unix_ctx_t *ctx = malloc(sizeof(unix_ctx_t));
   if (!ctx) {
     lua_pushnil(co);
     lua_pushstring(co, "out of memory");
     return 2;
   }
   ctx->co = co;
-  ctx->type = SOCKET_SERVER;
+  ctx->type = UNIX_SERVER;
   ctx->server.accept_ref = LUA_NOREF;
   ctx->server.pending_accepts = queue_init();
   if (!ctx->server.pending_accepts) {
@@ -285,32 +257,29 @@ int lunet_socket_listen(lua_State *co) {
   }
 
   int ret = 0;
-  if ((ret = uv_tcp_init(uv_default_loop(), &ctx->u.tcp)) < 0) {
+  if ((ret = uv_pipe_init(uv_default_loop(), &ctx->u.pipe, 0)) < 0) {
     queue_destroy(ctx->server.pending_accepts);
     free(ctx);
     lua_pushnil(co);
-    lua_pushfstring(co, "failed to initialize TCP: %s", uv_strerror(ret));
+    lua_pushfstring(co, "failed to initialize Pipe: %s", uv_strerror(ret));
     return 2;
   }
 
   ctx->u.handle.data = ctx;
 
-  struct sockaddr_in addr;
-  if (uv_ip4_addr(host, port, &addr) < 0) {
-    uv_close(&ctx->u.handle, lunet_close_cb);
+  // Unix socket: remove file if exists
+  #ifndef _WIN32
+  unlink(path);
+  #endif
+  if ((ret = uv_pipe_bind(&ctx->u.pipe, path)) < 0) {
+    uv_close(&ctx->u.handle, lunet_unix_close_cb);
     lua_pushnil(co);
-    lua_pushstring(co, "invalid host or port");
-    return 2;
-  }
-  if ((ret = uv_tcp_bind(&ctx->u.tcp, (const struct sockaddr *)&addr, 0)) < 0) {
-    uv_close(&ctx->u.handle, lunet_close_cb);
-    lua_pushnil(co);
-    lua_pushfstring(co, "failed to bind: %s", uv_strerror(ret));
+    lua_pushfstring(co, "failed to bind unix socket: %s", uv_strerror(ret));
     return 2;
   }
 
-  if ((ret = uv_listen(&ctx->u.stream, 128, lunet_listen_cb)) < 0) {
-    uv_close(&ctx->u.handle, lunet_close_cb);
+  if ((ret = uv_listen(&ctx->u.stream, 128, lunet_unix_listen_cb)) < 0) {
+    uv_close(&ctx->u.handle, lunet_unix_close_cb);
     lua_pushnil(co);
     lua_pushfstring(co, "failed to listen: %s", uv_strerror(ret));
     return 2;
@@ -321,8 +290,8 @@ int lunet_socket_listen(lua_State *co) {
   return 2;
 }
 
-int lunet_socket_accept(lua_State *co) {
-  if (lunet_ensure_coroutine(co, "socket.accept") != 0) {
+int lunet_unix_accept(lua_State *co) {
+  if (lunet_ensure_coroutine(co, "unix.accept") != 0) {
     return lua_error(co);
   }
 
@@ -332,7 +301,7 @@ int lunet_socket_accept(lua_State *co) {
     return 2;
   }
 
-  socket_ctx_t *listener_ctx = (socket_ctx_t *)lua_touserdata(co, 1);
+  unix_ctx_t *listener_ctx = (unix_ctx_t *)lua_touserdata(co, 1);
   if (!listener_ctx) {
     lua_pushnil(co);
     lua_pushstring(co, "invalid listener handle");
@@ -348,7 +317,7 @@ int lunet_socket_accept(lua_State *co) {
 
   // there is a connection in the queue
   if (!queue_is_empty(listener_ctx->server.pending_accepts)) {
-    socket_ctx_t *client_ctx = (socket_ctx_t *)queue_dequeue(listener_ctx->server.pending_accepts);
+    unix_ctx_t *client_ctx = (unix_ctx_t *)queue_dequeue(listener_ctx->server.pending_accepts);
     if (client_ctx) {
       lua_pushlightuserdata(co, client_ctx);
       lua_pushnil(co);
@@ -364,8 +333,8 @@ int lunet_socket_accept(lua_State *co) {
   return lua_yield(co, 0);
 }
 
-int lunet_socket_getpeername(lua_State *L) {
-  if (lunet_ensure_coroutine(L, "socket.getpeername") != 0) {
+int lunet_unix_getpeername(lua_State *L) {
+  if (lunet_ensure_coroutine(L, "unix.getpeername") != 0) {
     return lua_error(L);
   }
 
@@ -375,55 +344,48 @@ int lunet_socket_getpeername(lua_State *L) {
     return 2;
   }
 
-  socket_ctx_t *ctx = (socket_ctx_t *)lua_touserdata(L, 1);
+  unix_ctx_t *ctx = (unix_ctx_t *)lua_touserdata(L, 1);
   if (!ctx) {
     lua_pushnil(L);
     lua_pushstring(L, "invalid socket handle");
     return 2;
   }
 
-  struct sockaddr_in addr;
-  int addr_len = sizeof(addr);
-  int ret = uv_tcp_getpeername(&ctx->u.tcp, (struct sockaddr *)&addr, &addr_len);
+  // Unix socket
+  // uv_pipe_getpeername
+  char buf[256];
+  size_t len = sizeof(buf);
+  int ret = uv_pipe_getpeername(&ctx->u.pipe, buf, &len);
   if (ret < 0) {
-    lua_pushnil(L);
-    lua_pushfstring(L, "failed to get peer name: %s", uv_strerror(ret));
-    return 2;
+      lua_pushstring(L, "unix"); // Fallback if fails or unconnected?
+  } else {
+      lua_pushlstring(L, buf, len);
   }
-
-  char buf[INET_ADDRSTRLEN];
-  if (uv_ip4_name(&addr, buf, sizeof(buf)) < 0) {
-    lua_pushnil(L);
-    lua_pushstring(L, "failed to get peer name");
-    return 2;
-  }
-
-  lua_pushfstring(L, "%s:%d", buf, ntohs(addr.sin_port));
   
   lua_pushnil(L);
   return 2;
 }
 
-int lunet_socket_close(lua_State *L) {
+int lunet_unix_close(lua_State *L) {
   if (!lua_islightuserdata(L, 1)) {
     lua_pushstring(L, "invalid socket handle");
     return 1;
   }
 
-  socket_ctx_t *ctx = (socket_ctx_t *)lua_touserdata(L, 1);
+  unix_ctx_t *ctx = (unix_ctx_t *)lua_touserdata(L, 1);
   if (!ctx) {
     lua_pushstring(L, "invalid socket handle");
     return 1;
   }
 
-  uv_close(&ctx->u.handle, lunet_close_cb);
+  uv_close(&ctx->u.handle, lunet_unix_close_cb);
 
   lua_pushnil(L);
   return 1;
 }
 
-int lunet_socket_read(lua_State *co) {
-  if (lunet_ensure_coroutine(co, "socket.read") != 0) {
+int lunet_unix_read(lua_State *co) {
+  if (lunet_ensure_coroutine(co, "unix.read") != 0) {
     return lua_error(co);
   }
 
@@ -433,8 +395,8 @@ int lunet_socket_read(lua_State *co) {
     return 2;
   }
 
-  socket_ctx_t *ctx = (socket_ctx_t *)lua_touserdata(co, 1);
-  if (!ctx || ctx->type != SOCKET_CLIENT) {
+  unix_ctx_t *ctx = (unix_ctx_t *)lua_touserdata(co, 1);
+  if (!ctx || ctx->type != UNIX_CLIENT) {
     lua_pushnil(co);
     lua_pushstring(co, "invalid client socket handle");
     return 2;
@@ -451,7 +413,7 @@ int lunet_socket_read(lua_State *co) {
   lunet_coref_create(co, ctx->client.read_ref);
 
   // start reading
-  int ret = uv_read_start(&ctx->u.stream, alloc_buffer, lunet_read_cb);
+  int ret = uv_read_start(&ctx->u.stream, alloc_buffer, lunet_unix_read_cb);
   if (ret < 0) {
     // failed to start reading, clean up the reference
     lunet_coref_release(co, ctx->client.read_ref);
@@ -465,8 +427,8 @@ int lunet_socket_read(lua_State *co) {
   return lua_yield(co, 0);
 }
 
-int lunet_socket_write(lua_State *co) {
-  if (lunet_ensure_coroutine(co, "socket.write") != 0) {
+int lunet_unix_write(lua_State *co) {
+  if (lunet_ensure_coroutine(co, "unix.write") != 0) {
     return lua_error(co);
   }
 
@@ -480,8 +442,8 @@ int lunet_socket_write(lua_State *co) {
     return 1;
   }
 
-  socket_ctx_t *ctx = (socket_ctx_t *)lua_touserdata(co, 1);
-  if (!ctx || ctx->type != SOCKET_CLIENT) {
+  unix_ctx_t *ctx = (unix_ctx_t *)lua_touserdata(co, 1);
+  if (!ctx || ctx->type != UNIX_CLIENT) {
     lua_pushstring(co, "invalid client socket handle");
     return 1;
   }
@@ -521,7 +483,7 @@ int lunet_socket_write(lua_State *co) {
   lunet_coref_create(co, ctx->client.write_ref);
 
   // start writing
-  int ret = uv_write(&write_req->req, &ctx->u.stream, &buf, 1, lunet_write_cb);
+  int ret = uv_write(&write_req->req, &ctx->u.stream, &buf, 1, lunet_unix_write_cb);
   if (ret < 0) {
     // failed to start writing, clean up the resource
     lunet_coref_release(co, ctx->client.write_ref);
@@ -539,13 +501,12 @@ int lunet_socket_write(lua_State *co) {
 
 typedef struct {
   uv_connect_t req;
-  socket_ctx_t *ctx;
+  unix_ctx_t *ctx;
   lua_State *co;
   int co_ref;
-  char err[256];
 } connect_ctx_t;
 
-static void lunet_connect_cb(uv_connect_t *req, int status) {
+static void lunet_unix_connect_cb(uv_connect_t *req, int status) {
   connect_ctx_t *ctx = (connect_ctx_t *)req->data;
   lua_State *co = ctx->co;
 
@@ -573,21 +534,14 @@ static void lunet_connect_cb(uv_connect_t *req, int status) {
   free(ctx);
 }
 
-int lunet_socket_connect(lua_State *L) {
-  if (lunet_ensure_coroutine(L, "socket.connect") != 0) {
+int lunet_unix_connect(lua_State *L) {
+  if (lunet_ensure_coroutine(L, "unix.connect") != 0) {
     return lua_error(L);
   }
 
-  const char *host = luaL_checkstring(L, 1);
-  int port = luaL_checkinteger(L, 2);
+  const char *path = luaL_checkstring(L, 1);
 
-  if (port < 1 || port > 65535) {
-    lua_pushnil(L);
-    lua_pushstring(L, "port must be between 1 and 65535");
-    return 2;
-  }
-
-  socket_ctx_t *ctx = malloc(sizeof(socket_ctx_t));
+  unix_ctx_t *ctx = malloc(sizeof(unix_ctx_t));
   if (!ctx) {
     lua_pushnil(L);
     lua_pushstring(L, "out of memory");
@@ -595,11 +549,11 @@ int lunet_socket_connect(lua_State *L) {
   }
 
   ctx->co = L;
-  ctx->type = SOCKET_CLIENT;
+  ctx->type = UNIX_CLIENT;
   ctx->client.read_ref = LUA_NOREF;
   ctx->client.write_ref = LUA_NOREF;
 
-  int ret = uv_tcp_init(uv_default_loop(), &ctx->u.tcp);
+  int ret = uv_pipe_init(uv_default_loop(), &ctx->u.pipe, 0);
 
   if (ret < 0) {
     free(ctx);
@@ -612,7 +566,7 @@ int lunet_socket_connect(lua_State *L) {
 
   connect_ctx_t *connect_ctx = malloc(sizeof(connect_ctx_t));
   if (!connect_ctx) {
-    uv_close(&ctx->u.handle, lunet_close_cb);
+    uv_close(&ctx->u.handle, lunet_unix_close_cb);
     free(ctx);
     lua_pushnil(L);
     lua_pushstring(L, "out of memory");
@@ -627,39 +581,36 @@ int lunet_socket_connect(lua_State *L) {
   // save coroutine reference, for resume in connect_cb
   lunet_coref_create(L, connect_ctx->co_ref);
 
-  struct sockaddr_in dest;
-  ret = uv_ip4_addr(host, port, &dest);
-  if (ret < 0) {
-    lunet_coref_release(L, connect_ctx->co_ref);
-    connect_ctx->co_ref = LUA_NOREF;
-    free(connect_ctx);
-    uv_close(&ctx->u.handle, lunet_close_cb);
-    free(ctx);
-    lua_pushnil(L);
-    lua_pushstring(L, "invalid host or port");
-    return 2;
-  }
-  ret = uv_tcp_connect(&connect_ctx->req, &ctx->u.tcp, (const struct sockaddr *)&dest, lunet_connect_cb);
+  uv_pipe_connect(&connect_ctx->req, &ctx->u.pipe, path, lunet_unix_connect_cb);
   
-  if (ret < 0) {
-    lunet_coref_release(L, connect_ctx->co_ref);
-    connect_ctx->co_ref = LUA_NOREF;
-    free(connect_ctx);
-    uv_close(&ctx->u.handle, lunet_close_cb);
-    free(ctx);
-    lua_pushnil(L);
-    lua_pushfstring(L, "failed to start connect: %s", uv_strerror(ret));
-    return 2;
-  }
-
   // yield to wait for connection to complete
   return lua_yield(L, 0);
 }
 
-int lunet_socket_set_read_buffer_size(lua_State *L) {
+int lunet_unix_set_read_buffer_size(lua_State *L) {
   if (lua_isnumber(L, 1)) {
     read_buffer_size = lua_tointeger(L, 1);
   }
   lua_pushnil(L);
   return 1;
+}
+
+static int lunet_open_unix(lua_State *L) {
+  luaL_Reg funcs[] = {{"listen", lunet_unix_listen},
+                      {"accept", lunet_unix_accept},
+                      {"getpeername", lunet_unix_getpeername},
+                      {"close", lunet_unix_close},
+                      {"read", lunet_unix_read},
+                      {"write", lunet_unix_write},
+                      {"connect", lunet_unix_connect},
+                      {"set_read_buffer_size", lunet_unix_set_read_buffer_size},
+                      {NULL, NULL}};
+  luaL_newlib(L, funcs);
+  return 1;
+}
+
+LUNET_API int luaopen_lunet_unix(lua_State *L) {
+  lunet_trace_init();
+  set_default_luaL(L);
+  return lunet_open_unix(L);
 }
