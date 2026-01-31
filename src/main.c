@@ -14,9 +14,12 @@
 #include "rt.h"
 #include "socket.h"
 #include "timer.h"
-#include "udp.h"
 #include "trace.h"
 #include "runtime.h"
+
+#ifdef LUNET_HAS_UDP
+#include "lunet_udp.h"
+#endif
 
 lunet_runtime_config_t g_lunet_config = {0};
 
@@ -41,7 +44,8 @@ int lunet_open_socket(lua_State *L) {
   return 1;
 }
 
-int lunet_open_udp(lua_State *L) {
+#ifdef LUNET_HAS_UDP
+static int lunet_open_udp(lua_State *L) {
   luaL_Reg funcs[] = {{"bind", lunet_udp_bind},
                       {"send", lunet_udp_send},
                       {"recv", lunet_udp_recv},
@@ -50,6 +54,7 @@ int lunet_open_udp(lua_State *L) {
   luaL_newlib(L, funcs);
   return 1;
 }
+#endif
 
 int lunet_open_signal(lua_State *L) {
   luaL_Reg funcs[] = {{"wait", lunet_signal_wait}, {NULL, NULL}};
@@ -123,6 +128,15 @@ LUNET_API int luaopen_lunet_postgres(lua_State *L) {
 }
 #endif
 
+// UDP extension module entry point
+#if defined(LUNET_HAS_UDP)
+LUNET_API int luaopen_lunet_udp(lua_State *L) {
+  lunet_trace_init();
+  set_default_luaL(L);
+  return lunet_open_udp(L);
+}
+#endif
+
 // register modules
 void lunet_open(lua_State *L) {
   // register core module
@@ -137,12 +151,6 @@ void lunet_open(lua_State *L) {
   lua_pushcfunction(L, lunet_open_socket);
   lua_setfield(L, -2, "lunet.socket");
   lua_pop(L, 2);
-  // register udp module
-  lua_getglobal(L, "package");
-  lua_getfield(L, -1, "preload");
-  lua_pushcfunction(L, lunet_open_udp);
-  lua_setfield(L, -2, "lunet.udp");
-  lua_pop(L, 2);
   // register signal module
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "preload");
@@ -156,8 +164,8 @@ void lunet_open(lua_State *L) {
   lua_setfield(L, -2, "lunet.fs");
   lua_pop(L, 2);
 
-  // Database drivers register themselves via luaopen_lunet_<driver>
-  // No generic lunet.db registration here - each driver is a separate module
+  // UDP and Database drivers register themselves via luaopen_lunet_<driver>
+  // No generic lunet.udp or lunet.db registration here - each driver is a separate module
 }
 
 /**
@@ -263,9 +271,6 @@ int main(int argc, char **argv) {
   lua_pop(L, 1);
   
   /* Dump trace statistics and assert balance (no-op in release builds) */
-#ifdef LUNET_TRACE
-  lunet_udp_trace_summary();
-#endif
   lunet_trace_dump();
   lunet_trace_assert_balanced("shutdown");
   

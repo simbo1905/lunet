@@ -17,7 +17,7 @@ option("trace")
     set_description("Enable LUNET_TRACE for coroutine reference tracking")
 option_end()
 
--- Common source files for core lunet
+-- Common source files for core lunet (UDP moved to ext/udp/)
 local core_sources = {
     "src/main.c",
     "src/co.c",
@@ -25,7 +25,6 @@ local core_sources = {
     "src/rt.c",
     "src/signal.c",
     "src/socket.c",
-    "src/udp.c",
     "src/stl.c",
     "src/timer.c",
     "src/trace.c"
@@ -229,6 +228,50 @@ target("lunet-postgres")
     add_includedirs("include", "ext/postgres", {public = true})
     add_packages("luajit", "libuv", "pq")
     add_defines("LUNET_NO_MAIN", "LUNET_HAS_DB", "LUNET_DB_POSTGRES")
+    
+    if is_plat("macosx") then
+        add_ldflags("-bundle", "-undefined", "dynamic_lookup", {force = true})
+    end
+    if is_plat("linux") then
+        add_defines("_GNU_SOURCE")
+        add_cflags("-pthread")
+        add_ldflags("-pthread")
+        add_syslinks("pthread", "dl", "m")
+    end
+    if is_plat("windows") then
+        add_cflags("/TC")
+        add_defines("LUNET_BUILDING_DLL")
+        add_syslinks("ws2_32", "iphlpapi", "userenv", "psapi", "advapi32", "user32", "shell32", "ole32", "dbghelp")
+    end
+    if has_config("trace") then
+        add_defines("LUNET_TRACE")
+    end
+target_end()
+
+-- =============================================================================
+-- UDP Extension Module (separate package)
+-- =============================================================================
+-- UDP is now a separate module, loadable as require("lunet.udp")
+-- Usage: xmake build lunet-udp
+-- Lua:   local udp = require("lunet.udp")
+
+-- UDP driver: require("lunet.udp")
+target("lunet-udp")
+    set_kind("shared")
+    set_prefixname("")
+    set_basename("udp")  -- Output: lunet/udp.so
+    set_targetdir("$(buildir)/$(plat)/$(arch)/$(mode)/lunet")
+    if is_plat("windows") then
+        set_extension(".dll")
+    else
+        set_extension(".so")
+    end
+    
+    add_files(core_sources)
+    add_files("ext/udp/udp.c")
+    add_includedirs("include", "ext/udp", {public = true})
+    add_packages("luajit", "libuv")
+    add_defines("LUNET_NO_MAIN", "LUNET_HAS_UDP")
     
     if is_plat("macosx") then
         add_ldflags("-bundle", "-undefined", "dynamic_lookup", {force = true})
