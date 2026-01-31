@@ -16,14 +16,22 @@ typedef struct {
   int closed;
 } lunet_pg_conn_t;
 
-static void lunet_pg_conn_destroy(lunet_pg_conn_t* wrapper) {
+// Close the PG connection but don't destroy the mutex (caller may still hold it)
+static void lunet_pg_conn_close(lunet_pg_conn_t* wrapper) {
   if (!wrapper || wrapper->closed) return;
   wrapper->closed = 1;
   if (wrapper->conn) {
     PQfinish(wrapper->conn);
     wrapper->conn = NULL;
   }
-  uv_mutex_destroy(&wrapper->mutex);
+}
+
+// Full cleanup including mutex - only call when mutex is NOT held (e.g., from GC)
+static void lunet_pg_conn_destroy(lunet_pg_conn_t* wrapper) {
+  lunet_pg_conn_close(wrapper);
+  if (wrapper) {
+    uv_mutex_destroy(&wrapper->mutex);
+  }
 }
 
 static int conn_gc(lua_State* L) {
@@ -175,7 +183,7 @@ int lunet_db_close(lua_State* L) {
   }
 
   uv_mutex_lock(&wrapper->mutex);
-  lunet_pg_conn_destroy(wrapper);
+  lunet_pg_conn_close(wrapper);
   uv_mutex_unlock(&wrapper->mutex);
 
   lua_pushnil(L);

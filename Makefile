@@ -1,5 +1,5 @@
-.PHONY: all build init test clean run stop wui init-bench bench-django bench-django-stop help
-.PHONY: lint build-debug stress release rock
+.PHONY: all build init test clean help
+.PHONY: lint build-debug stress release rock rocks-validate certs smoke
 
 all: build ## Build the project (default)
 
@@ -92,39 +92,6 @@ rock: lint ## Build and install lunet via LuaRocks
 	@echo "=== Building LuaRocks package ==="
 	luarocks make lunet-scm-1.rockspec
 
-# Note: Demo app moved to https://github.com/lua-lunet/lunet-realworld-example-app
-
-# =============================================================================
-# Django Benchmark
-# Requires: mise with Python 3.12, PostgreSQL with 'conduit' database
-# See bench/AGENTS.md for setup details
-# =============================================================================
-
-init-bench: ## Initialize benchmark dependencies (mise, python)
-	@echo "Initializing benchmark environment..."
-	@command -v mise >/dev/null 2>&1 || { echo >&2 "Error: mise required. See https://mise.jdx.dev"; exit 1; }
-	mise trust
-	mise install python@3.12
-	mise use python@3.12
-	@echo "Benchmark environment initialized. Python 3.12 ready."
-
-bench-django: ## Start Django benchmark environment
-	@echo "Starting Django benchmark server..."
-	@command -v mise >/dev/null 2>&1 || { echo >&2 "Error: mise required. See https://mise.jdx.dev"; exit 1; }
-	@command -v nginx >/dev/null 2>&1 || { echo >&2 "Error: nginx required. brew install nginx"; exit 1; }
-	@test -f bench/bin/bench_setup_django.lua || { echo >&2 "Error: bench/bin/bench_setup_django.lua not found"; exit 1; }
-	@test -f bench/bin/bench_start_django.sh || { echo >&2 "Error: bench/bin/bench_start_django.sh not found"; exit 1; }
-	lua bench/bin/bench_setup_django.lua
-	bench/bin/bench_start_django.sh
-	@echo ""
-	@echo "Django benchmark running:"
-	@echo "  Frontend: http://localhost:9091"
-	@echo "  API:      http://localhost:9090/api"
-
-bench-django-stop: ## Stop Django benchmark environment
-	@echo "Stopping Django benchmark server..."
-	bench/bin/bench_stop_django.sh || true
-
 # =============================================================================
 # LuaRocks Package Distribution
 # =============================================================================
@@ -138,6 +105,26 @@ rocks-validate: ## Validate rockspec syntax
 		fi; \
 	done
 	@echo "All rockspecs valid."
+
+# =============================================================================
+# Smoke Tests (Database Drivers)
+# =============================================================================
+
+smoke: build ## Run database driver smoke tests (SQLite3 required, MySQL/Postgres optional)
+	@echo "=== Running DB Driver Smoke Tests ==="
+	@LUNET_BIN=$$(find build -path '*/release/lunet' -type f 2>/dev/null | head -1); \
+	if [ -z "$$LUNET_BIN" ]; then echo "Error: lunet binary not found"; exit 1; fi; \
+	echo ""; \
+	echo "--- SQLite3 (required) ---"; \
+	$$LUNET_BIN test/smoke_sqlite3.lua || exit 1; \
+	echo ""; \
+	echo "--- MySQL (optional) ---"; \
+	$$LUNET_BIN test/smoke_mysql.lua || true; \
+	echo ""; \
+	echo "--- PostgreSQL (optional) ---"; \
+	$$LUNET_BIN test/smoke_postgres.lua || true; \
+	echo ""; \
+	echo "=== Smoke tests complete ==="
 
 # =============================================================================
 # Development Utilities

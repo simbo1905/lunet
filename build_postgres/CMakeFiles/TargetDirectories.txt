@@ -1,3 +1,0 @@
-/Users/Shared/lunet/build_postgres/CMakeFiles/lunet.dir
-/Users/Shared/lunet/build_postgres/CMakeFiles/edit_cache.dir
-/Users/Shared/lunet/build_postgres/CMakeFiles/rebuild_cache.dir

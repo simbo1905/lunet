@@ -61,9 +61,11 @@ local function check_file(path)
         
         -- Rule 1: No _lunet_* internal calls
         -- Excluding definitions "int _lunet_..." or "void _lunet_..."
+        -- Excluding luaopen_lunet_* (Lua module entry points)
         if code_part:match("_lunet_[%w_]+%s*%(") and 
            not code_part:match("int%s+_lunet_") and 
-           not code_part:match("void%s+_lunet_") then
+           not code_part:match("void%s+_lunet_") and
+           not code_part:match("luaopen_lunet_") then
             table.insert(file_violations, {
                 line = i,
                 content = line,
