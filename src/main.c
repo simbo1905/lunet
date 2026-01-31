@@ -14,7 +14,6 @@
 #include "rt.h"
 #include "socket.h"
 #include "timer.h"
-#include "udp.h"
 #include "trace.h"
 #include "runtime.h"
 
@@ -41,15 +40,6 @@ int lunet_open_socket(lua_State *L) {
   return 1;
 }
 
-int lunet_open_udp(lua_State *L) {
-  luaL_Reg funcs[] = {{"bind", lunet_udp_bind},
-                      {"send", lunet_udp_send},
-                      {"recv", lunet_udp_recv},
-                      {"close", lunet_udp_close},
-                      {NULL, NULL}};
-  luaL_newlib(L, funcs);
-  return 1;
-}
 
 int lunet_open_signal(lua_State *L) {
   luaL_Reg funcs[] = {{"wait", lunet_signal_wait}, {NULL, NULL}};
@@ -136,12 +126,6 @@ void lunet_open(lua_State *L) {
   lua_getfield(L, -1, "preload");
   lua_pushcfunction(L, lunet_open_socket);
   lua_setfield(L, -2, "lunet.socket");
-  lua_pop(L, 2);
-  // register udp module
-  lua_getglobal(L, "package");
-  lua_getfield(L, -1, "preload");
-  lua_pushcfunction(L, lunet_open_udp);
-  lua_setfield(L, -2, "lunet.udp");
   lua_pop(L, 2);
   // register signal module
   lua_getglobal(L, "package");
@@ -264,7 +248,6 @@ int main(int argc, char **argv) {
   
   /* Dump trace statistics and assert balance (no-op in release builds) */
 #ifdef LUNET_TRACE
-  lunet_udp_trace_summary();
 #endif
   lunet_trace_dump();
   lunet_trace_assert_balanced("shutdown");
