@@ -123,6 +123,42 @@ LUNET_API int luaopen_lunet_postgres(lua_State *L) {
 }
 #endif
 
+// =============================================================================
+// Unix Domain Socket Extension
+// =============================================================================
+#ifdef LUNET_HAS_UNIX
+int lunet_unix_listen(lua_State *L);
+int lunet_unix_accept(lua_State *L);
+int lunet_unix_connect(lua_State *L);
+int lunet_unix_read(lua_State *L);
+int lunet_unix_write(lua_State *L);
+int lunet_unix_close(lua_State *L);
+int lunet_unix_getpeername(lua_State *L);
+int lunet_unix_unlink(lua_State *L);
+int lunet_unix_set_read_buffer_size(lua_State *L);
+
+static int lunet_open_unix(lua_State *L) {
+  luaL_Reg funcs[] = {{"listen", lunet_unix_listen},
+                      {"accept", lunet_unix_accept},
+                      {"connect", lunet_unix_connect},
+                      {"read", lunet_unix_read},
+                      {"write", lunet_unix_write},
+                      {"close", lunet_unix_close},
+                      {"getpeername", lunet_unix_getpeername},
+                      {"unlink", lunet_unix_unlink},
+                      {"set_read_buffer_size", lunet_unix_set_read_buffer_size},
+                      {NULL, NULL}};
+  luaL_newlib(L, funcs);
+  return 1;
+}
+
+LUNET_API int luaopen_lunet_unix(lua_State *L) {
+  lunet_trace_init();
+  set_default_luaL(L);
+  return lunet_open_unix(L);
+}
+#endif
+
 // register modules
 void lunet_open(lua_State *L) {
   // register core module
