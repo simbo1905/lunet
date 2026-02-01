@@ -14,9 +14,12 @@
 #include "rt.h"
 #include "socket.h"
 #include "timer.h"
-#include "udp.h"
 #include "trace.h"
 #include "runtime.h"
+
+#ifdef LUNET_HAS_UDP
+#include "lunet_udp.h"
+#endif
 
 static char *lunet_resolve_executable_path(const char *argv0) {
 #if defined(_WIN32)
@@ -49,7 +52,8 @@ int lunet_open_socket(lua_State *L) {
   return 1;
 }
 
-int lunet_open_udp(lua_State *L) {
+#ifdef LUNET_HAS_UDP
+static int lunet_open_udp(lua_State *L) {
   luaL_Reg funcs[] = {{"bind", lunet_udp_bind},
                       {"send", lunet_udp_send},
                       {"recv", lunet_udp_recv},
@@ -58,6 +62,7 @@ int lunet_open_udp(lua_State *L) {
   luaL_newlib(L, funcs);
   return 1;
 }
+#endif
 
 int lunet_open_signal(lua_State *L) {
   luaL_Reg funcs[] = {{"wait", lunet_signal_wait}, {NULL, NULL}};
@@ -76,12 +81,6 @@ int lunet_open_fs(lua_State *L) {
   luaL_newlib(L, funcs);
   return 1;
 }
-
-// =============================================================================
-// Database Driver Support
-// =============================================================================
-// Each driver defines LUNET_DB_DRIVER to its name (sqlite3, mysql, postgres).
-// The driver module registers as lunet.<driver> and exports luaopen_lunet_<driver>.
 
 #ifdef LUNET_HAS_DB
 int lunet_db_open(lua_State* L);
@@ -106,7 +105,6 @@ static int lunet_open_db(lua_State *L) {
 }
 #endif
 
-// Driver-specific module entry points
 #if defined(LUNET_DB_SQLITE3)
 LUNET_API int luaopen_lunet_sqlite3(lua_State *L) {
   lunet_trace_init();
@@ -131,54 +129,40 @@ LUNET_API int luaopen_lunet_postgres(lua_State *L) {
 }
 #endif
 
-// register modules
+#if defined(LUNET_HAS_UDP)
+LUNET_API int luaopen_lunet_udp(lua_State *L) {
+  lunet_trace_init();
+  set_default_luaL(L);
+  return lunet_open_udp(L);
+}
+#endif
+
 void lunet_open(lua_State *L) {
-  // register core module
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "preload");
   lua_pushcfunction(L, lunet_open_core);
   lua_setfield(L, -2, "lunet");
   lua_pop(L, 2);
-  // register socket module
+
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "preload");
   lua_pushcfunction(L, lunet_open_socket);
   lua_setfield(L, -2, "lunet.socket");
   lua_pop(L, 2);
-  // register udp module
-  lua_getglobal(L, "package");
-  lua_getfield(L, -1, "preload");
-  lua_pushcfunction(L, lunet_open_udp);
-  lua_setfield(L, -2, "lunet.udp");
-  lua_pop(L, 2);
-  // register signal module
+
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "preload");
   lua_pushcfunction(L, lunet_open_signal);
   lua_setfield(L, -2, "lunet.signal");
   lua_pop(L, 2);
-  // register fs module
+
   lua_getglobal(L, "package");
   lua_getfield(L, -1, "preload");
   lua_pushcfunction(L, lunet_open_fs);
   lua_setfield(L, -2, "lunet.fs");
   lua_pop(L, 2);
-
-  // Database drivers register themselves via luaopen_lunet_<driver>
-  // No generic lunet.db registration here - each driver is a separate module
 }
 
-/**
- * Module entry point for require("lunet")
- * 
- * This function is called when lunet is loaded as a C module via LuaRocks.
- * It initializes the runtime, registers all submodules in package.preload,
- * and returns the core module table.
- * 
- * Usage from Lua:
- *   local lunet = require("lunet")
- *   lunet.spawn(function() ... end)
- */
 LUNET_API int luaopen_lunet(lua_State *L) {
   lunet_trace_init();
   set_default_luaL(L);
@@ -224,10 +208,6 @@ int main(int argc, char **argv) {
   set_default_luaL(L);
   lunet_open(L);
 
-  // Add binary's directory to cpath for finding driver .so files
-  // Drivers are in same dir as binary, named like sqlite3.so, mysql.so
-  // They're loaded as lunet.sqlite3, so we need lunet/?.so pattern
-  // Create symlink-style lookup: binarydir/lunet/?.so -> binarydir/?.so
   {
     char *exe_path = lunet_resolve_executable_path(argv[0]);
     if (!exe_path) {
@@ -290,9 +270,6 @@ int main(int argc, char **argv) {
   lua_pop(L, 1);
   
   /* Dump trace statistics and assert balance (no-op in release builds) */
-#ifdef LUNET_TRACE
-  lunet_udp_trace_summary();
-#endif
   lunet_trace_dump();
   lunet_trace_assert_balanced("shutdown");
   
