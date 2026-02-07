@@ -70,6 +70,7 @@ jobs:
         VCPKG_BINARY_SOURCES: 'clear;nuget,readwrite'
         VCPKG_RETRY_COUNT: '3'
         VCPKG_RETRY_DELAY: '2'
+        VCPKG_USE_HEAD_VERSION: 'false'
 
     - name: Install Dependencies (Windows)
       if: runner.os == 'Windows'
