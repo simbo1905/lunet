@@ -61,8 +61,11 @@ jobs:
     - name: Install Dependencies (Windows)
       if: runner.os == 'Windows'
       run: |
-        vcpkg install libuv:x64-windows luajit:x64-windows
-        vcpkg install libpq:x64-windows --feature-options=lz4,openssl,zlib
+        vcpkg install libuv:x64-windows
+        vcpkg install luajit:x64-windows
+        vcpkg install libpq:x64-windows --feature lz4
+        vcpkg install libpq:x64-windows --feature openssl
+        vcpkg install libpq:x64-windows --feature zlib
 
     - name: Configure (Unix)
       if: runner.os != 'Windows'
