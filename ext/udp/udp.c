@@ -1,4 +1,4 @@
-#include "udp.h"
+#include "lunet_udp.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -17,10 +17,6 @@
 #include "stl.h"
 #include "trace.h"
 
-/*
- * UDP Context Structure
- * Defined here so we can add trace fields if needed
- */
 typedef struct {
   uv_udp_t handle;
   queue_t *pending;
@@ -32,10 +28,6 @@ typedef struct {
 #endif
 } udp_ctx_t;
 
-/*
- * UDP-specific tracing macros
- * Zero-cost in release builds (LUNET_TRACE not defined)
- */
 #ifdef LUNET_TRACE
 
 static int udp_trace_tx_count = 0;
