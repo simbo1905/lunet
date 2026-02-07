@@ -73,6 +73,7 @@ jobs:
         VCPKG_USE_HEAD_VERSION: 'false'
         VCPKG_CMAKE_VERSION: '3.31.10'
         VCPKG_DISABLE_METRICS: 'true'
+        VCPKG_DISABLE_METRICS: 'true'
 
     - name: Install Dependencies (Windows)
       if: runner.os == 'Windows'
